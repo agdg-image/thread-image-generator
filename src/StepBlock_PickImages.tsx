@@ -1,4 +1,5 @@
 
+import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
@@ -55,6 +56,42 @@ export function StepBlock_PickImages(
 ) {
 
     const [imageDataURIMap, setImageDataURIMap] = React.useState(new Map<string, LoadStatus>());
+
+    const [imageDataElementMap, setImageDataElementMap] = React.useState<Map<string, HTMLImageElement>>(new Map());
+
+    React.useEffect(
+        () => {
+
+            const removeItemsWithMissingFileNames = <E,>(oldMap: Map<string, E>) => {
+
+                const newMap = new Map(oldMap);
+
+                const openedFilesSet = new Set(openedFiles.keys());
+
+                for (const fileName of Array.from(oldMap.keys())) {
+
+                    if (!openedFilesSet.has(fileName)) {
+
+                        newMap.delete(fileName);
+                    }
+                }
+
+                if (newMap.size === oldMap.size) {
+
+                    return oldMap;
+                }
+                else {
+
+                    return newMap;
+                }
+            };
+
+            setImageDataURIMap(removeItemsWithMissingFileNames)
+
+            setImageDataElementMap(removeItemsWithMissingFileNames)
+        },
+        [openedFiles, imageDataURIMap, imageDataElementMap]
+    );
 
     const openedFilesList = Array.from(openedFiles);
 
@@ -204,6 +241,39 @@ export function StepBlock_PickImages(
             stepNumber={3}
             stepTitle="Pick images"
         >
+            <Typography>
+                Picked: {pickedFiles.size}/{openedFiles.size}.
+            </Typography>
+            <Button
+                variant="contained"
+                sx={{
+                    marginBottom: "6px",
+                }}
+                onClick={() => {
+
+                    setPickedFiles(() => {
+
+                        const newMap = new Map();
+
+                        const openedFileList = Array.from(openedFiles.keys());
+
+                        openedFileList.forEach((openedFile) => {
+
+                            const imageElement = imageDataElementMap.get(openedFile);
+
+                            if (imageElement !== undefined) {
+
+                                newMap.set(openedFile, imageElement);
+                            }
+
+                        });
+
+                        return newMap;
+                    });
+                }}
+            >
+                Pick all loaded images
+            </Button>
             <div
                 style={{
                     display: "flex",
@@ -240,20 +310,24 @@ export function StepBlock_PickImages(
                                     });
                                 }}
 
-                                setIsPicked={(fileName, isPickedElement) => {
+                                isPicked={pickedFiles.has(fileName)}
+
+                                setIsPicked={(fileName, isPicked) => {
 
 
                                     setPickedFiles((oldMap) => {
 
                                         const newMap = new Map(oldMap);
 
-                                        if (isPickedElement !== null) {
+                                        const isPickedElement = imageDataElementMap.get(fileName);
 
-                                            newMap.set(fileName, isPickedElement);
+                                        if (!isPicked || isPickedElement === undefined) {
+
+                                            newMap.delete(fileName);
                                         }
                                         else {
 
-                                            newMap.delete(fileName);
+                                            newMap.set(fileName, isPickedElement);
                                         }
 
                                         return newMap;
@@ -261,6 +335,18 @@ export function StepBlock_PickImages(
                                 }}
 
                                 pickedFiles={pickedFiles}
+
+                                setImageElement={(fileName, imageElement) => {
+
+                                    setImageDataElementMap(oldMap => {
+
+                                        const newMap = new Map(oldMap);
+
+                                        newMap.set(fileName, imageElement);
+
+                                        return newMap;
+                                    })
+                                }}
                             />
                         );
                     })
@@ -278,14 +364,18 @@ function ImageBlock(
         fileName,
         imageDataURIMap,
         handleImageOnError,
+        isPicked,
         setIsPicked,
         pickedFiles,
+        setImageElement,
     }: {
         fileName: string,
         imageDataURIMap: Map<string, LoadStatus>,
         handleImageOnError: (fileName: string) => void,
-        setIsPicked: (fileName: string, pickedHTMLImageElement: HTMLImageElement | null) => void,
+        isPicked: boolean,
+        setIsPicked: (fileName: string, isPicked: boolean) => void,
         pickedFiles: Map<string, HTMLImageElement>,
+        setImageElement: (fileName: string, htmlImageElement: HTMLImageElement) => void,
     }
 ) {
 
@@ -330,6 +420,8 @@ function ImageBlock(
                                                 handleImageOnError(fileName);
                                             }
                                             else {
+
+                                                setImageElement(fileName, img);
 
                                                 setImageSize([
                                                     img.naturalWidth,
@@ -395,17 +487,11 @@ function ImageBlock(
                     label="Picked"
                     control={
                         <Switch
-                            disabled={loadStatus === undefined || loadStatus.aType !== "loadcomplete" }
+                            checked={isPicked}
+                            disabled={loadStatus === undefined || loadStatus.aType !== "loadcomplete"}
                             onChange={(changeEvent) => {
 
-                                if (changeEvent.target.checked) {
-
-                                    setIsPicked(fileName, imageRef.current);
-                                }
-                                else {
-
-                                    setIsPicked(fileName, null);
-                                }
+                                setIsPicked(fileName, changeEvent.target.checked);
                             }}
                         />
                     }

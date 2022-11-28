@@ -12,39 +12,6 @@ import Typography from "@mui/material/Typography";
 import React from "react";
 import { StepBlock } from "./StepBlock";
 
-function getStretchedDrawing(
-    columnNum: number,
-    rowNum: number,
-    pWidth: number,
-    pHeight: number,
-    imageBlockItemWidth: number,
-    imageBlockItemHeight: number,
-) {
-
-    const sx = 0;
-    const sy = 0;
-
-    const sWidth = pWidth;
-    const sHeight = pHeight;
-
-    const dx = (columnNum - 1) * imageBlockItemWidth;
-    const dy = (rowNum - 1) * imageBlockItemHeight;
-
-    const dWidth = imageBlockItemWidth;
-    const dHeight = imageBlockItemHeight;
-
-    return [
-        sx,
-        sy,
-        sWidth,
-        sHeight,
-        dx,
-        dy,
-        dWidth,
-        dHeight,
-    ];
-}
-
 function getCutDrawing(
     columnNum: number,
     rowNum: number,
@@ -102,6 +69,39 @@ function getCutDrawing(
     ];
 }
 
+function getStretchedDrawing(
+    columnNum: number,
+    rowNum: number,
+    pWidth: number,
+    pHeight: number,
+    imageBlockItemWidth: number,
+    imageBlockItemHeight: number,
+) {
+
+    const sx = 0;
+    const sy = 0;
+
+    const sWidth = pWidth;
+    const sHeight = pHeight;
+
+    const dx = (columnNum - 1) * imageBlockItemWidth;
+    const dy = (rowNum - 1) * imageBlockItemHeight;
+
+    const dWidth = imageBlockItemWidth;
+    const dHeight = imageBlockItemHeight;
+
+    return [
+        sx,
+        sy,
+        sWidth,
+        sHeight,
+        dx,
+        dy,
+        dWidth,
+        dHeight,
+    ];
+}
+
 export function StepBlock_AdjustGeneratedImage(
     {
         pickedFiles,
@@ -125,7 +125,7 @@ export function StepBlock_AdjustGeneratedImage(
     const [columnCount, setColumnCount] = React.useState(4);
     const [rowCount, setRowCount] = React.useState(4);
 
-    const [stretchedOrCut, setStretchedOrCut] = React.useState(0);
+    const [cutOrStretched, setCutOrStretched] = React.useState(0);
 
     const logoRef = React.useRef<HTMLImageElement>(null);
 
@@ -135,10 +135,7 @@ export function StepBlock_AdjustGeneratedImage(
 
     const [logoColor, setLogoColor] = React.useState("#000000");
 
-    // the color of the logo is changed in a weird way,
-    // which creates an issue with refreshing the image,
-    // and this hack mitigates that
-    const [refresh_hack, setRefresh_hack] = React.useState(0);
+    const [belatedLogoSrc, setBelatedLogoSrc] = React.useState("");
 
     const [logoSize, setLogoSize] = React.useState(1);
 
@@ -230,9 +227,9 @@ export function StepBlock_AdjustGeneratedImage(
 
                             const p = pickedImageBitmap;
 
-                            const methodToUse = stretchedOrCut === 0
-                                ? getStretchedDrawing
-                                : getCutDrawing;
+                            const methodToUse = cutOrStretched === 0
+                                ? getCutDrawing
+                                : getStretchedDrawing;
 
                             const [
                                 sx,
@@ -299,7 +296,6 @@ export function StepBlock_AdjustGeneratedImage(
                     }
 
 
-
                     const image = canvas.toDataURL("image/png");
 
                     setGeneratedImageDataURL(image);
@@ -308,9 +304,8 @@ export function StepBlock_AdjustGeneratedImage(
             }
         },
         [
-            pickedFiles, pickedImageBitmaps, canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight, columnCount, rowCount, stretchedOrCut,
-            logoRef, showLogo, logoOpacity, logoColor, refresh_hack, logoSize, canvasRef, setGeneratedImageDataURL,
-
+            pickedFiles, pickedImageBitmaps, canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight, columnCount, rowCount, cutOrStretched,
+            logoRef, showLogo, logoOpacity, logoColor, belatedLogoSrc, logoSize, canvasRef, setGeneratedImageDataURL,
         ]
     );
 
@@ -357,6 +352,27 @@ export function StepBlock_AdjustGeneratedImage(
 
         </Button>
     );
+
+    const logoSrc = `
+    data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'
+    style='opacity:1; fill:%23${logoColor.substring(1)};fill-opacity:1;stroke:none;stroke-width:10;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1'
+    %3E%3Cg%3E%3Cpath d='m 0,50 c 8.2191767,8.21918 16.438353,16.43836 24.65753,24.65754 2.739727,-2.739727 5.479453,-5.479453 8.21918,-8.21918 -2.39726,-2.39726
+    -4.79452,-4.79452 -7.19178,-7.19178 2.739727,-2.739727 5.479453,-5.479453 8.21918,-8.21918 2.39726,2.39726 4.79452,4.79452 7.19178,7.19178 C 43.835617,55.479453
+    46.575343,52.739727 49.31507,50 41.09589,41.780823 32.87671,33.561647 24.65753,25.34247 16.438353,33.561647 8.2191767,41.780823 0,50 Z m 14.72603,-1.71233
+    c 2.739727,-2.739727 5.479453,-5.479453 8.21918,-8.21918 1.484017,1.48402 2.968033,2.96804 4.45205,4.45206 -2.739727,2.739727 -5.479453,5.479453 -8.21918,8.21918
+    -1.484017,-1.48402 -2.968033,-2.96804 -4.45205,-4.45206 z' id='Amateur' /%3E%3Cpath d='M 25.34247,24.65754 C 33.561647,32.876717 41.780823,41.095893 50,49.31507
+    58.219177,41.095893 66.438353,32.876717 74.65753,24.65754 69.520547,19.520553 64.383563,14.383567 59.24658,9.24658 c -2.739727,2.739723 -5.479453,5.479447
+    -8.21918,8.21917 2.39726,2.397263 4.79452,4.794527 7.19178,7.19179 C 55.479453,27.397263 52.739727,30.136987 50,32.87671 47.260273,30.136987 44.520547,27.397263
+    41.78082,24.65754 47.260273,19.178087 52.739727,13.698633 58.21918,8.21918 55.479453,5.4794533 52.739727,2.7397267 50,0 41.780823,8.21918 33.561647,16.43836
+    25.34247,24.65754 Z' id='Game' /%3E%3Cpath d='M 25.34247,75.34247 C 33.561647,83.561647 41.780823,91.780823 50,100 58.219177,91.780823 66.438353,83.561647
+    74.65753,75.34247 69.17808,69.863017 63.69863,64.383563 58.21918,58.90411 c -5.479453,0 -10.958907,0 -16.43836,0 -5.479444,5.479451 -10.958934,10.958921
+    -16.43835,16.43836 z m 16.43835,0 C 44.520547,72.602743 47.260273,69.863017 50,67.12329 c 2.739727,2.739727 5.479453,5.479453 8.21918,8.21918
+    C 55.479453,78.082193 52.739727,80.821917 50,83.56164 47.260273,80.821917 44.520547,78.082193 41.78082,75.34247 Z' id='Development' /%3E%3Cpath
+    d='M 50.68493,50 C 58.904107,58.21918 67.123283,66.43836 75.34246,74.65754 83.56164,66.43836 91.78082,58.21918 100,50 94.863013,44.863013 89.726027,39.726027
+    84.58904,34.58904 c -2.739727,2.739727 -5.479453,5.479453 -8.21918,8.21918 2.39726,2.39726 4.79452,4.79452 7.19178,7.19178 -2.739727,2.739727 -5.479453,5.479453
+    -8.21918,8.21918 C 72.602737,55.479453 69.863013,52.739727 67.12329,50 72.60274,44.520547 78.08219,39.041093 83.56164,33.56164 80.821913,30.821917
+    78.082187,28.082193 75.34246,25.34247 67.123283,33.561647 58.904107,41.780823 50.68493,50 Z' id='General' /%3E%3C/g%3E%3C/svg%3E
+    `;
 
     return (
         <StepBlock
@@ -493,7 +509,7 @@ export function StepBlock_AdjustGeneratedImage(
                             <Container>
 
                                 <RadioGroup
-                                    value={stretchedOrCut}
+                                    value={cutOrStretched}
                                     onChange={(event) => {
 
 
@@ -506,11 +522,11 @@ export function StepBlock_AdjustGeneratedImage(
                                             num = 0;
                                         }
 
-                                        setStretchedOrCut(clamp(0, num, 1));
+                                        setCutOrStretched(clamp(0, num, 1));
                                     }}
                                 >
-                                    <FormControlLabel value={0} control={<Radio />} label="Stretched (may change aspect ratio)"></FormControlLabel>
-                                    <FormControlLabel value={1} control={<Radio />} label="Cut (preserves aspect ratio, but may cut part of the image)"></FormControlLabel>
+                                    <FormControlLabel value={0} control={<Radio />} label="Cut (preserves aspect ratio, but may cut part of the image)"></FormControlLabel>
+                                    <FormControlLabel value={1} control={<Radio />} label="Stretched (may change aspect ratio)"></FormControlLabel>
                                 </RadioGroup>
 
                             </Container>
@@ -535,32 +551,10 @@ export function StepBlock_AdjustGeneratedImage(
                                 visibility: "hidden",
                                 display: "none",
                             }}
-                            src={`
-                            data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'
-                            style='opacity:1; fill:%23${logoColor.substring(1)};fill-opacity:1;stroke:none;stroke-width:10;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1'
-                            %3E%3Cg%3E%3Cpath d='m 0,50 c 8.2191767,8.21918 16.438353,16.43836 24.65753,24.65754 2.739727,-2.739727 5.479453,-5.479453 8.21918,-8.21918 -2.39726,-2.39726
-                            -4.79452,-4.79452 -7.19178,-7.19178 2.739727,-2.739727 5.479453,-5.479453 8.21918,-8.21918 2.39726,2.39726 4.79452,4.79452 7.19178,7.19178 C 43.835617,55.479453
-                            46.575343,52.739727 49.31507,50 41.09589,41.780823 32.87671,33.561647 24.65753,25.34247 16.438353,33.561647 8.2191767,41.780823 0,50 Z m 14.72603,-1.71233
-                            c 2.739727,-2.739727 5.479453,-5.479453 8.21918,-8.21918 1.484017,1.48402 2.968033,2.96804 4.45205,4.45206 -2.739727,2.739727 -5.479453,5.479453 -8.21918,8.21918
-                            -1.484017,-1.48402 -2.968033,-2.96804 -4.45205,-4.45206 z' id='Amateur' /%3E%3Cpath d='M 25.34247,24.65754 C 33.561647,32.876717 41.780823,41.095893 50,49.31507
-                            58.219177,41.095893 66.438353,32.876717 74.65753,24.65754 69.520547,19.520553 64.383563,14.383567 59.24658,9.24658 c -2.739727,2.739723 -5.479453,5.479447
-                            -8.21918,8.21917 2.39726,2.397263 4.79452,4.794527 7.19178,7.19179 C 55.479453,27.397263 52.739727,30.136987 50,32.87671 47.260273,30.136987 44.520547,27.397263
-                            41.78082,24.65754 47.260273,19.178087 52.739727,13.698633 58.21918,8.21918 55.479453,5.4794533 52.739727,2.7397267 50,0 41.780823,8.21918 33.561647,16.43836
-                            25.34247,24.65754 Z' id='Game' /%3E%3Cpath d='M 25.34247,75.34247 C 33.561647,83.561647 41.780823,91.780823 50,100 58.219177,91.780823 66.438353,83.561647
-                            74.65753,75.34247 69.17808,69.863017 63.69863,64.383563 58.21918,58.90411 c -5.479453,0 -10.958907,0 -16.43836,0 -5.479444,5.479451 -10.958934,10.958921
-                            -16.43835,16.43836 z m 16.43835,0 C 44.520547,72.602743 47.260273,69.863017 50,67.12329 c 2.739727,2.739727 5.479453,5.479453 8.21918,8.21918
-                            C 55.479453,78.082193 52.739727,80.821917 50,83.56164 47.260273,80.821917 44.520547,78.082193 41.78082,75.34247 Z' id='Development' /%3E%3Cpath
-                            d='M 50.68493,50 C 58.904107,58.21918 67.123283,66.43836 75.34246,74.65754 83.56164,66.43836 91.78082,58.21918 100,50 94.863013,44.863013 89.726027,39.726027
-                            84.58904,34.58904 c -2.739727,2.739727 -5.479453,5.479453 -8.21918,8.21918 2.39726,2.39726 4.79452,4.79452 7.19178,7.19178 -2.739727,2.739727 -5.479453,5.479453
-                            -8.21918,8.21918 C 72.602737,55.479453 69.863013,52.739727 67.12329,50 72.60274,44.520547 78.08219,39.041093 83.56164,33.56164 80.821913,30.821917
-                            78.082187,28.082193 75.34246,25.34247 67.123283,33.561647 58.904107,41.780823 50.68493,50 Z' id='General' /%3E%3C/g%3E%3C/svg%3E
-                            `}
+                            src={logoSrc}
                             onLoad={() => {
 
-                                setRefresh_hack((previous) => {
-
-                                    return previous + 1;
-                                });
+                                setBelatedLogoSrc(logoSrc);
                             }}
                          >
                         </img>

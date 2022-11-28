@@ -31,6 +31,7 @@ function ContainerHeader(props: React.PropsWithChildren) {
   );
 }
 
+const thumbnailPatternRegex = /^(\d)+s\.jpg$/;
 
 function App() {
 
@@ -39,6 +40,37 @@ function App() {
   const [pickedFiles, setPickedFiles] = React.useState(new Map<string, HTMLImageElement>());
 
   const [generatedImageDataURL, setGeneratedImageDataURL] = React.useState<string | null>(null);
+
+  React.useEffect(
+    () => {
+
+      setPickedFiles((oldMap) => {
+
+        const newMap = new Map(oldMap);
+
+        const pickedFilesList = Array.from(pickedFiles.keys());
+
+        for (const pickedFile of pickedFilesList) {
+
+          if (!imageFiles.has(pickedFile)) {
+
+            newMap.delete(pickedFile);
+          }
+        }
+
+        if (newMap.size === oldMap.size) {
+
+          return oldMap;
+        }
+        else {
+
+          return newMap;
+        }
+      })
+
+    },
+    [imageFiles, pickedFiles]
+  );
 
   return (
 
@@ -74,6 +106,27 @@ function App() {
 
               return newMap;
             })
+          }}
+          removeThumbnailFiles={() => {
+
+            setImageFiles(previousImageFiles => {
+
+              const fileNameList = Array.from(previousImageFiles.keys());
+
+              const newMap = new Map(previousImageFiles);
+
+              for (const fileName of fileNameList) {
+
+                if (thumbnailPatternRegex.test(fileName)) {
+
+                  newMap.delete(fileName);
+                }
+              }
+
+              return newMap;
+            });
+
+
           }}
         />
 

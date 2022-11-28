@@ -14,6 +14,7 @@ export function StepBlock_OpenImages(
 
             <OpenImageFiles
                 addFilesCallback={props.addFilesCallback}
+                removeThumbnailFiles={props.removeThumbnailFiles}
             />
         </StepBlock>
     );
