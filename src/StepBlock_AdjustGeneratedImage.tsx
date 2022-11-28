@@ -139,6 +139,10 @@ export function StepBlock_AdjustGeneratedImage(
 
     const [logoSize, setLogoSize] = React.useState(1);
 
+    const [canvasBackgroundColor, setCanvasBackgroundColor] = React.useState("#aaaaaa");
+
+    const [showCanvasBackground, setShowCanvasBackground] = React.useState(true);
+
     React.useEffect(
         () => {
 
@@ -210,6 +214,15 @@ export function StepBlock_AdjustGeneratedImage(
                 if (ctx !== null) {
 
                     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+                    if (showCanvasBackground) {
+                        ctx.save();
+
+                        ctx.fillStyle = canvasBackgroundColor;
+                        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                        ctx.restore();
+                    }
 
                     const pickedFiles = Array.from(pickedImageBitmaps.keys());
 
@@ -305,7 +318,7 @@ export function StepBlock_AdjustGeneratedImage(
         },
         [
             pickedFiles, pickedImageBitmaps, canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight, columnCount, rowCount, cutOrStretched,
-            logoRef, showLogo, logoOpacity, logoColor, belatedLogoSrc, logoSize, canvasRef, setGeneratedImageDataURL,
+            logoRef, showLogo, logoOpacity, logoColor, belatedLogoSrc, logoSize, canvasRef, setGeneratedImageDataURL, canvasBackgroundColor, showCanvasBackground,
         ]
     );
 
@@ -634,6 +647,7 @@ export function StepBlock_AdjustGeneratedImage(
 
                                 <input
                                     type="color"
+                                    value={logoColor}
                                     onChange={(event) => {
 
                                         setLogoColor(event.target.value);
@@ -680,6 +694,67 @@ export function StepBlock_AdjustGeneratedImage(
 
                     </Container>
 
+                </Card>
+
+                <Card
+                    sx={{
+                        marginTop: "20px",
+                    }}
+                >
+                    <Container>
+
+                        <CanvasControlTitle
+                            text="Canvas background"
+                        />
+
+                        <Card
+                            sx={{
+                                marginBottom: "10px",
+                                paddingBottom: "6px",
+                            }}
+                        >
+                            <Container>
+
+                                <Typography>
+                                    Color: {canvasBackgroundColor}
+                                </Typography>
+
+                                <input
+                                    type="color"
+                                    value={canvasBackgroundColor}
+                                    onChange={(event) => {
+
+                                        setCanvasBackgroundColor(event.target.value);
+                                    }}
+                                />
+
+                            </Container>
+                        </Card>
+
+                        <Card
+                            sx={{
+                                marginBottom: "10px",
+                                paddingBottom: "6px",
+                            }}
+                        >
+                            <Container>
+
+                                <FormControlLabel
+                                    label="Draw canvas background color"
+                                    control={
+                                        <Switch
+                                            checked={showCanvasBackground}
+                                            onChange={(event) => {
+
+                                                setShowCanvasBackground(event.target.checked)
+                                            }}
+                                        />
+                                    }
+                                />
+
+                            </Container>
+                        </Card>
+                    </Container>
                 </Card>
 
                 <Card
