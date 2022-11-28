@@ -235,6 +235,9 @@ export function StepBlock_PickImages(
         [openedFiles, imageDataURIMap, openedFilesList]
     );
 
+    const openedFilesListSorted = Array.from(openedFilesList);
+    openedFilesListSorted.sort();
+
     return (
         <StepBlock
             colorSwitch={false}
@@ -243,6 +246,9 @@ export function StepBlock_PickImages(
         >
             <Typography>
                 Picked: {pickedFiles.size}/{openedFiles.size}.
+            </Typography>
+            <Typography>
+                Sorted by file name.
             </Typography>
             <Button
                 variant="contained"
@@ -284,7 +290,7 @@ export function StepBlock_PickImages(
                 }}
             >
                 {
-                    openedFilesList.map(([fileName, openedFile]) => {
+                    openedFilesListSorted.map(([fileName, openedFile]) => {
 
                         return (
                             <ImageBlock
@@ -295,7 +301,7 @@ export function StepBlock_PickImages(
 
                                 imageDataURIMap={imageDataURIMap}
 
-                                handleImageOnError={(fileName, error) => {
+                                handleImageOnError={(fileName) => {
 
                                     setImageDataURIMap((oldMap) => {
 
@@ -370,7 +376,7 @@ function ImageBlock(
     }: {
         fileName: string,
         imageDataURIMap: Map<string, LoadStatus>,
-        handleImageOnError: (fileName: string, error: any) => void,
+        handleImageOnError: (fileName: string) => void,
         isPicked: boolean,
         setIsPicked: (fileName: string, isPicked: boolean) => void,
         pickedFiles: Map<string, HTMLImageElement>,
@@ -417,7 +423,7 @@ function ImageBlock(
 
                                             if (img.naturalWidth === 0 || img.naturalHeight === 0) {
 
-                                                handleImageOnError(fileName, "Image size is 0.");
+                                                handleImageOnError(fileName);
                                             }
                                             else {
 
@@ -430,9 +436,9 @@ function ImageBlock(
                                             }
                                         }
                                     }}
-                                    onError={(event) => {
+                                    onError={() => {
 
-                                        handleImageOnError(fileName, event)
+                                        handleImageOnError(fileName)
                                     }}
                                 >
                                 </img>
