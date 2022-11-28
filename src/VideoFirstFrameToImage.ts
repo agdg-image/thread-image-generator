@@ -17,20 +17,27 @@ export function retrieveFirstFrameAsImageFromVideo(
 
             video.addEventListener("loadeddata", (loadedDataEvent) => {
 
-                const canvas = document.createElement("canvas");
+                if (!didEnd) {
 
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+                    const canvas = document.createElement("canvas");
 
-                const ctx = canvas.getContext("2d");
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
 
-                if (ctx !== null) {
+                    const ctx = canvas.getContext("2d");
 
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    if (ctx !== null) {
 
-                    didEnd = true;
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                    onFulfilled(canvas.toDataURL());
+                        didEnd = true;
+
+                        onFulfilled(canvas.toDataURL());
+
+                        video.pause();
+                        video.removeAttribute("src");
+                        video.load();
+                    }
                 }
             });
 

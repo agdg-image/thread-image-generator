@@ -69,6 +69,16 @@ export function StepBlock_PickImages(
 
                     // file has not been loaded yet, begin loading
 
+                    setImageDataURIMap((oldMap) => {
+                        return getNewMap(
+                            fileName,
+                            {
+                                aType: "loading",
+                            },
+                            oldMap
+                        );
+                    });
+
                     const fileReader = new FileReader();
 
                     const endEventTypes = [
@@ -105,7 +115,6 @@ export function StepBlock_PickImages(
                                         retrieveFirstFrameAsImageFromVideo(fileName, fileReader.result as string)
                                             .then(
                                                 (imageResult) => {
-
 
                                                     setImageDataURIMap((anotherOldMap) => {
 
