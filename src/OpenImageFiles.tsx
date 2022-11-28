@@ -152,12 +152,14 @@ export function OpenImageFiles(
 
                                         const canvas = document.createElement("canvas") as HTMLCanvasElement;
 
-                                        canvas.width = img.naturalWidth;
-                                        canvas.height = img.naturalHeight;
+                                        canvas.width = img.naturalWidth*4;
+                                        canvas.height = img.naturalHeight*4;
 
                                         const ctx = canvas.getContext("2d");
 
                                         if (ctx !== null) {
+
+                                            ctx.scale(4, 4);
 
                                             ctx.drawImage(img, 0, 0);
                                         }
