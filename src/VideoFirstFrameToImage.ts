@@ -13,6 +13,7 @@ export function retrieveFirstFrameAsImageFromVideo(
             let didEnd: boolean = false;
 
             const video = document.createElement("video");
+            video.autoplay = true;
 
             video.addEventListener("loadeddata", (loadedDataEvent) => {
 
