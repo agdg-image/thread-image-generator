@@ -1,21 +1,20 @@
 
-
-import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
 import React from "react";
 import { ImageFileMap } from "./ImageFileMap";
 import { StepBlock } from "./StepBlock";
 
-type LoadStatus =
+export type LoadStatus =
     {
         aType: "loading"
     }
     |
     {
         aType: "loadcomplete",
-        image: string | null,
+        image: string,
     }
     |
     {
@@ -44,17 +43,19 @@ export const imageBlockSize = 190;
 
 export function StepBlock_PickImages(
     {
-        openedFiles
+        openedFiles,
+        pickedFiles,
+        setPickedFiles,
     }: {
         openedFiles: ImageFileMap,
+        pickedFiles: Map<string, HTMLImageElement>,
+        setPickedFiles: React.Dispatch<React.SetStateAction<Map<string, HTMLImageElement>>>,
     }
 ) {
 
-    const openedFilesList = Array.from(openedFiles);
-
     const [imageDataURIMap, setImageDataURIMap] = React.useState(new Map<string, LoadStatus>());
 
-    const [pickedFiles, setPickedFiles] = React.useState(new Set<string>());
+    const openedFilesList = Array.from(openedFiles);
 
     React.useEffect(
         () => {
@@ -91,14 +92,25 @@ export function StepBlock_PickImages(
 
                                 // be aware, casting the type
 
-                                return getNewMap(
-                                    fileName,
-                                    {
-                                        aType: "loadcomplete",
-                                        image: fileReader.result as string | null,
-                                    },
-                                    oldMap
-                                );
+                                const oldStatus = oldMap.get(fileName);
+
+                                const didFail = oldStatus !== undefined && oldStatus.aType === "loadfailed"
+
+                                if (!didFail) {
+
+                                    return getNewMap(
+                                        fileName,
+                                        {
+                                            aType: "loadcomplete",
+                                            image: fileReader.result as string,
+                                        },
+                                        oldMap
+                                    );
+                                }
+                                else {
+
+                                    return oldMap;
+                                }
                             });
 
                             cleanUp(listener);
@@ -178,23 +190,23 @@ export function StepBlock_PickImages(
                                     });
                                 }}
 
-                                setIsPicked={(fileName, isPicked) => {
+                                setIsPicked={(fileName, isPickedElement) => {
 
 
-                                    setPickedFiles((oldSet) => {
+                                    setPickedFiles((oldMap) => {
 
-                                        const newSet = new Set(oldSet);
+                                        const newMap = new Map(oldMap);
 
-                                        if (isPicked) {
+                                        if (isPickedElement !== null) {
 
-                                            newSet.add(fileName);
+                                            newMap.set(fileName, isPickedElement);
                                         }
                                         else {
 
-                                            newSet.delete(fileName);
+                                            newMap.delete(fileName);
                                         }
 
-                                        return newSet;
+                                        return newMap;
                                     });
                                 }}
 
@@ -222,8 +234,8 @@ function ImageBlock(
         fileName: string,
         imageDataURIMap: Map<string, LoadStatus>,
         handleImageOnError: (fileName: string) => void,
-        setIsPicked: (fileName: string, isPicked: boolean) => void,
-        pickedFiles: Set<string>,
+        setIsPicked: (fileName: string, pickedHTMLImageElement: HTMLImageElement | null) => void,
+        pickedFiles: Map<string, HTMLImageElement>,
     }
 ) {
 
@@ -260,7 +272,7 @@ function ImageBlock(
 
                                             const img = imageRef.current;
 
-                                            if (img.naturalWidth === 0 && img.naturalHeight === 0) {
+                                            if (img.naturalWidth === 0 || img.naturalHeight === 0) {
 
                                                 handleImageOnError(fileName);
                                             }
@@ -322,11 +334,18 @@ function ImageBlock(
                 <FormControlLabel
                     label="Picked"
                     control={
-                        <Checkbox
+                        <Switch
                             disabled={loadStatus === undefined || loadStatus.aType !== "loadcomplete" }
                             onChange={(changeEvent) => {
 
-                                setIsPicked(fileName, changeEvent.target.checked);
+                                if (changeEvent.target.checked) {
+
+                                    setIsPicked(fileName, imageRef.current);
+                                }
+                                else {
+
+                                    setIsPicked(fileName, null);
+                                }
                             }}
                         />
                     }

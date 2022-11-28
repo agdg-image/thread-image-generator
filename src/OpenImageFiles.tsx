@@ -27,7 +27,7 @@ export function OpenImageFiles(
 
         <Box>
             <Typography>
-                Open the images for inclusion from your file system (file names must be unique or they will be overwritten).
+                Open the images for inclusion from your file system (file names must be unique).
                 You can open multiple files at a time.
             </Typography>
             <Button
