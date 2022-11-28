@@ -22,6 +22,7 @@ export function DragAndDrop(
                     height: "400px",
                     borderStyle: "dashed",
                     borderColor: theme.palette.grey[400],
+                    marginTop: "6px",
                 }),
             ]}
         >

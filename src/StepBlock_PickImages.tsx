@@ -295,8 +295,7 @@ export function StepBlock_PickImages(
 
                                 imageDataURIMap={imageDataURIMap}
 
-                                handleImageOnError={(fileName) => {
-
+                                handleImageOnError={(fileName, error) => {
 
                                     setImageDataURIMap((oldMap) => {
 
@@ -371,7 +370,7 @@ function ImageBlock(
     }: {
         fileName: string,
         imageDataURIMap: Map<string, LoadStatus>,
-        handleImageOnError: (fileName: string) => void,
+        handleImageOnError: (fileName: string, error: any) => void,
         isPicked: boolean,
         setIsPicked: (fileName: string, isPicked: boolean) => void,
         pickedFiles: Map<string, HTMLImageElement>,
@@ -397,6 +396,7 @@ function ImageBlock(
                     }
                     case "loadcomplete": {
 
+
                         return loadStatus.image === null
                             ? loadingFailedText
                             : (
@@ -417,7 +417,7 @@ function ImageBlock(
 
                                             if (img.naturalWidth === 0 || img.naturalHeight === 0) {
 
-                                                handleImageOnError(fileName);
+                                                handleImageOnError(fileName, "Image size is 0.");
                                             }
                                             else {
 
@@ -430,7 +430,10 @@ function ImageBlock(
                                             }
                                         }
                                     }}
-                                    onError={() => handleImageOnError(fileName)}
+                                    onError={(event) => {
+
+                                        handleImageOnError(fileName, event)
+                                    }}
                                 >
                                 </img>
                             );
