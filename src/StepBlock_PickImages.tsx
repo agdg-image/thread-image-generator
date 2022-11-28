@@ -6,6 +6,7 @@ import Typography from "@mui/material/Typography";
 import React from "react";
 import { ImageFileMap } from "./ImageFileMap";
 import { StepBlock } from "./StepBlock";
+import { retrieveFirstFrameAsImageFromVideo } from "./VideoFirstFrameToImage";
 
 export type LoadStatus =
     {
@@ -98,14 +99,54 @@ export function StepBlock_PickImages(
 
                                 if (!didFail) {
 
-                                    return getNewMap(
-                                        fileName,
-                                        {
-                                            aType: "loadcomplete",
-                                            image: fileReader.result as string,
-                                        },
-                                        oldMap
-                                    );
+                                    if (fileName.endsWith(".webm")) {
+
+
+                                        retrieveFirstFrameAsImageFromVideo(fileName, fileReader.result as string)
+                                            .then(
+                                                (imageResult) => {
+
+
+                                                    setImageDataURIMap((anotherOldMap) => {
+
+                                                        return getNewMap(
+                                                            fileName,
+                                                            {
+                                                                aType: "loadcomplete",
+                                                                image: imageResult as string,
+                                                            },
+                                                            anotherOldMap
+                                                        );
+                                                    })
+                                                },
+                                                () => {
+
+                                                    setImageDataURIMap((anotherOldMap) => {
+
+                                                        return getNewMap(
+                                                            fileName,
+                                                            {
+                                                                aType: "loadfailed",
+                                                            },
+                                                            anotherOldMap
+                                                        );
+                                                    })
+                                                }
+                                            );
+
+                                        return oldMap;
+                                    }
+                                    else {
+
+                                        return getNewMap(
+                                            fileName,
+                                            {
+                                                aType: "loadcomplete",
+                                                image: fileReader.result as string,
+                                            },
+                                            oldMap
+                                        );
+                                    }
                                 }
                                 else {
 
@@ -243,6 +284,8 @@ function ImageBlock(
 
     const imageRef = React.useRef<HTMLImageElement | null>(null);
 
+    const [imageSize, setImageSize] = React.useState<[number, number] | null>(null);
+
     const imageToShow = loadStatus === undefined
         ?
             <CircularProgress />
@@ -268,6 +311,7 @@ function ImageBlock(
                                     }}
                                     ref={imageRef}
                                     onLoad={() => {
+
                                         if (imageRef.current !== null) {
 
                                             const img = imageRef.current;
@@ -275,6 +319,13 @@ function ImageBlock(
                                             if (img.naturalWidth === 0 || img.naturalHeight === 0) {
 
                                                 handleImageOnError(fileName);
+                                            }
+                                            else {
+
+                                                setImageSize([
+                                                    img.naturalWidth,
+                                                    img.naturalHeight
+                                                ]);
                                             }
                                         }
                                     }}
@@ -317,7 +368,7 @@ function ImageBlock(
                     Filename: {fileName}
                 </Typography>
                 {
-                    imageRef.current === null
+                    imageSize === null
                         ?
                             <></>
                         :
@@ -328,7 +379,7 @@ function ImageBlock(
                                     fontSize: "10px",
                                 }}
                             >
-                                Size: {imageRef.current.naturalWidth + "x" + imageRef.current.naturalHeight}
+                                Size: {imageSize[0] + "x" + imageSize[1]}
                             </Typography>
                 }
                 <FormControlLabel

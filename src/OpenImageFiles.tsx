@@ -40,7 +40,7 @@ export function OpenImageFiles(
                     type="file"
                     hidden
                     multiple
-                    accept=".png, .jpg, .jpeg"
+                    accept=".png, .jpg, .jpeg, .gif, .webm"
                     onChange={changeListener}
                 />
 

@@ -119,8 +119,8 @@ export function StepBlock_AdjustGeneratedImage(
     const [canvasWidth, setCanvasWidth] = React.useState(800);
     const [canvasHeight, setCanvasHeight] = React.useState(600);
 
-    const [imageBlockItemWidth, setImageBlockItemWidth] = React.useState(128);
-    const [imageBlockItemHeight, setImageBlockItemHeight] = React.useState(128);
+    const [imageBlockItemWidth, setImageBlockItemWidth] = React.useState(256);
+    const [imageBlockItemHeight, setImageBlockItemHeight] = React.useState(256);
 
     const [columnCount, setColumnCount] = React.useState(4);
     const [rowCount, setRowCount] = React.useState(4);
@@ -339,6 +339,25 @@ export function StepBlock_AdjustGeneratedImage(
         }
     });
 
+    const fitCanvasSizeButton = (
+        <Button
+            variant="contained"
+            sx={{
+                marginBottom: "10px",
+            }}
+            disabled={fittingDimensions}
+            onClick={() => {
+
+                setCanvasWidth(columnCount * imageBlockItemWidth);
+                setCanvasHeight(rowCount * imageBlockItemHeight);
+
+            }}
+        >
+            Fit canvas size to column & row count and image block item size
+
+        </Button>
+    );
+
     return (
         <StepBlock
             colorSwitch={true}
@@ -384,22 +403,9 @@ export function StepBlock_AdjustGeneratedImage(
                             onUpdateDimension={setCanvasHeight}
                         />
 
-                        <Button
-                            variant="contained"
-                            sx={{
-                                marginBottom: "10px",
-                            }}
-                            disabled={fittingDimensions}
-                            onClick={() => {
-
-                                setCanvasWidth(columnCount * imageBlockItemWidth);
-                                setCanvasHeight(rowCount * imageBlockItemHeight);
-
-                            }}
-                        >
-                            Fit canvas size to column & row count and image block item size
-
-                        </Button>
+                        {
+                            fitCanvasSizeButton
+                        }
 
                     </Container>
 
@@ -741,6 +747,12 @@ export function StepBlock_AdjustGeneratedImage(
                                     )
                                 })
                                 : <></>
+                        }
+
+                        {
+                            fittingDimensions
+                                ? <></>
+                                : fitCanvasSizeButton
                         }
                     </Container>
                 </Card>

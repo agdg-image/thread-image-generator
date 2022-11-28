@@ -12,7 +12,7 @@ export function StepBlock_DownloadImages() {
         >
 
             <Typography>
-                Download the images from the thread. <span style={{ fontWeight: "bold" }}>This must be done manually.</span>&nbsp;
+                Download the images (including .gif) and videos (in .webm format) from the thread. <span style={{ fontWeight: "bold" }}>This must be done manually.</span>&nbsp;
                 You can with advantage install a browser extension like&nbsp;
 
                 <a href="https://chrome.google.com/webstore/detail/image-downloader/cnpniohnfphhjihaiiggeabnkjhpaldj">
