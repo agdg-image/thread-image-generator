@@ -1,17 +1,75 @@
 
+
 import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
+import grey from "@mui/material/colors/grey";
 import Container from "@mui/material/Container";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import Slider from "@mui/material/Slider";
+import createTheme from "@mui/material/styles/createTheme";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
+import { ThemeProvider } from "@mui/system";
 import React from "react";
 import { getLogoWithColor } from "./Logo";
 import { StepBlock } from "./StepBlock";
+
+const darkPaperTheme = createTheme({
+
+    palette: {
+        background: {
+            paper: grey[400],
+        }
+    }
+});
+
+const normalTheme = createTheme({});
+
+function getAvailableBlocks(
+    columnCount: number,
+    rowCount: number,
+    canvasGridCutColumnStart: number,
+    canvasGridCutColumnEnd: number,
+    canvasGridCutRowStart: number,
+    canvasGridCutRowEnd: number,
+    doCanvasGridCut: boolean,
+) {
+
+    if (doCanvasGridCut) {
+
+        // simplest to just simulate a grid
+
+        const grid = new Array(columnCount*rowCount);
+
+        grid.fill(1);
+
+        for (let c = canvasGridCutColumnStart; c <= canvasGridCutColumnEnd; c++) {
+
+            for (let r = canvasGridCutRowStart; r <= canvasGridCutRowEnd; r++) {
+
+                if (r <= rowCount && c <= columnCount) {
+
+                    const index = (c - 1) + (r - 1)*columnCount;
+
+                    if (index < grid.length) {
+
+                        grid[index] = 0;
+                    }
+                }
+            }
+        }
+
+        return grid.reduceRight((prev, now) => prev + now);
+    }
+    else {
+
+        return columnCount*rowCount;
+    }
+}
 
 function getCutDrawing(
     columnNum: number,
@@ -20,6 +78,8 @@ function getCutDrawing(
     pHeight: number,
     imageBlockItemWidth: number,
     imageBlockItemHeight: number,
+    doCanvasGap: boolean,
+    canvasGapSize: number,
 ) {
 
     const actualImageRatio = pHeight / pWidth;
@@ -32,8 +92,8 @@ function getCutDrawing(
     let sWidth;
     let sHeight;
 
-    const dx = (columnNum - 1) * imageBlockItemWidth;
-    const dy = (rowNum - 1) * imageBlockItemHeight;
+    const dx = (columnNum - 1) * imageBlockItemWidth + (doCanvasGap ? (columnNum - 1)*canvasGapSize : 0);
+    const dy = (rowNum - 1) * imageBlockItemHeight + (doCanvasGap ? (rowNum - 1)*canvasGapSize : 0);
 
     const dWidth = imageBlockItemWidth;
     const dHeight = imageBlockItemHeight;
@@ -77,6 +137,8 @@ function getStretchedDrawing(
     pHeight: number,
     imageBlockItemWidth: number,
     imageBlockItemHeight: number,
+    doCanvasGap: boolean,
+    canvasGapSize: number,
 ) {
 
     const sx = 0;
@@ -85,8 +147,8 @@ function getStretchedDrawing(
     const sWidth = pWidth;
     const sHeight = pHeight;
 
-    const dx = (columnNum - 1) * imageBlockItemWidth;
-    const dy = (rowNum - 1) * imageBlockItemHeight;
+    const dx = (columnNum - 1) * imageBlockItemWidth + (doCanvasGap ? (columnNum - 1)*canvasGapSize : 0);
+    const dy = (rowNum - 1) * imageBlockItemHeight + (doCanvasGap ? (rowNum - 1)*canvasGapSize : 0);
 
     const dWidth = imageBlockItemWidth;
     const dHeight = imageBlockItemHeight;
@@ -143,6 +205,20 @@ export function StepBlock_AdjustGeneratedImage(
     const [canvasBackgroundColor, setCanvasBackgroundColor] = React.useState("#aaaaaa");
 
     const [showCanvasBackground, setShowCanvasBackground] = React.useState(true);
+
+    const [canvasGridCutColumnStart, setCanvasGridCutColumnStart] = React.useState(2);
+
+    const [canvasGridCutColumnEnd, setCanvasGridCutColumnEnd] = React.useState(3);
+
+    const [canvasGridCutRowStart, setCanvasGridCutRowStart] = React.useState(2);
+
+    const [canvasGridCutRowEnd, setCanvasGridCutRowEnd] = React.useState(3);
+
+    const [doCanvasGridCut, setDoCanvasGridCut] = React.useState(false);
+
+    const [doCanvasGap, setDoCanvasGap] = React.useState(true);
+
+    const [canvasGapSize, setCanvasGapSize] = React.useState(2);
 
     React.useEffect(
         () => {
@@ -229,63 +305,65 @@ export function StepBlock_AdjustGeneratedImage(
 
                     pickedFiles.sort();
 
-                    let columnNum = 1;
-                    let rowNum = 1;
+                    let pickedFileIndex = 0;
 
-                    for (const pickedFile of pickedFiles) {
+                    for (let rowNum = 1; rowNum <= rowCount; rowNum++) {
 
-                        const pickedImageBitmap = pickedImageBitmaps.get(pickedFile);
+                        for (let columnNum = 1; columnNum <= columnCount; columnNum++) {
 
+                            let shouldCutOutOfGrid =
+                                doCanvasGridCut &&
+                                (canvasGridCutColumnStart <= columnNum && columnNum <= canvasGridCutColumnEnd) &&
+                                (canvasGridCutRowStart <= rowNum && rowNum <= canvasGridCutRowEnd);
 
-                        if (pickedImageBitmap instanceof ImageBitmap) {
+                            if (!shouldCutOutOfGrid) {
 
-                            const p = pickedImageBitmap;
+                                const pickedFile = pickedFiles[pickedFileIndex];
 
-                            const methodToUse = cutOrStretched === 0
-                                ? getCutDrawing
-                                : getStretchedDrawing;
+                                const pickedImageBitmap = pickedImageBitmaps.get(pickedFile);
 
-                            const [
-                                sx,
-                                sy,
-                                sWidth,
-                                sHeight,
-                                dx,
-                                dy,
-                                dWidth,
-                                dHeight,
-                            ] = methodToUse(
-                                columnNum,
-                                rowNum,
-                                p.width,
-                                p.height,
-                                imageBlockItemWidth,
-                                imageBlockItemHeight,
-                            );
+                                if (pickedImageBitmap instanceof ImageBitmap) {
 
-                            ctx.drawImage(
-                                p,
-                                sx,
-                                sy,
-                                sWidth,
-                                sHeight,
-                                dx,
-                                dy,
-                                dWidth,
-                                dHeight
-                            );
+                                    const p = pickedImageBitmap;
 
-                            columnNum++;
+                                    const methodToUse = cutOrStretched === 0
+                                        ? getCutDrawing
+                                        : getStretchedDrawing;
 
-                            if (columnNum > columnCount) {
+                                    const [
+                                        sx,
+                                        sy,
+                                        sWidth,
+                                        sHeight,
+                                        dx,
+                                        dy,
+                                        dWidth,
+                                        dHeight,
+                                    ] = methodToUse(
+                                        columnNum,
+                                        rowNum,
+                                        p.width,
+                                        p.height,
+                                        imageBlockItemWidth,
+                                        imageBlockItemHeight,
+                                        doCanvasGap,
+                                        canvasGapSize,
+                                    );
 
-                                columnNum = 1;
-                                rowNum++;
-                            }
+                                    ctx.drawImage(
+                                        p,
+                                        sx,
+                                        sy,
+                                        sWidth,
+                                        sHeight,
+                                        dx,
+                                        dy,
+                                        dWidth,
+                                        dHeight
+                                    );
+                                }
 
-                            if (rowNum > rowCount) {
-
-                                break;
+                                pickedFileIndex++;
                             }
                         }
                     }
@@ -320,14 +398,22 @@ export function StepBlock_AdjustGeneratedImage(
         [
             pickedFiles, pickedImageBitmaps, canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight, columnCount, rowCount, cutOrStretched,
             logoRef, showLogo, logoOpacity, logoColor, belatedLogoSrc, logoSize, canvasRef, setGeneratedImageDataURL, canvasBackgroundColor, showCanvasBackground,
+            canvasGridCutColumnStart, canvasGridCutColumnEnd, canvasGridCutRowStart, canvasGridCutRowEnd, doCanvasGridCut,
+            doCanvasGap, canvasGapSize,
         ]
     );
 
-    const fittingDimensions = imageBlockItemWidth * columnCount * imageBlockItemHeight * rowCount === canvasWidth * canvasHeight;
+    const fittingDimensionX = (imageBlockItemWidth * columnCount + (doCanvasGap ? canvasGapSize*(columnCount - 1) : 0));
+    const fittingDimensionY = (imageBlockItemHeight * rowCount + (doCanvasGap ? canvasGapSize*(rowCount - 1) : 0));
+
+    const fittingDimensions =
+        fittingDimensionX*fittingDimensionY === canvasWidth * canvasHeight;
 
     const checks = [
         {
-            checkFailedShouldWarn: Array.from(pickedFiles.keys()).length > columnCount * rowCount,
+            checkFailedShouldWarn:
+                Array.from(pickedFiles.keys()).length >
+                getAvailableBlocks(columnCount, rowCount, canvasGridCutColumnStart, canvasGridCutColumnEnd, canvasGridCutRowStart, canvasGridCutRowEnd, doCanvasGridCut),
             warningString: "Grid size is smaller than picked images, not all images are included. Please increase column or row count, or pick fewer images.",
         },
         {
@@ -357,8 +443,8 @@ export function StepBlock_AdjustGeneratedImage(
             disabled={fittingDimensions}
             onClick={() => {
 
-                setCanvasWidth(columnCount * imageBlockItemWidth);
-                setCanvasHeight(rowCount * imageBlockItemHeight);
+                setCanvasWidth(fittingDimensionX);
+                setCanvasHeight(fittingDimensionY);
 
             }}
         >
@@ -529,215 +615,352 @@ export function StepBlock_AdjustGeneratedImage(
                     </Container>
                 </Card>
 
-                <Card
-                    sx={{
-                        marginTop: "20px"
-                    }}
+
+                <ThemeProvider
+                    theme={showLogo ? normalTheme : darkPaperTheme}
                 >
-                    <Container>
+                    <Card
+                        sx={{
+                            marginTop: "20px"
+                        }}
+                    >
+                        <Container>
 
-                        <CanvasControlTitle
-                            text="Logo"
-                        />
+                            <CanvasControlTitle
+                                text="Logo"
+                            />
 
-                        <img
-                            ref={logoRef}
-                            style={{
-                                visibility: "hidden",
-                                display: "none",
-                            }}
-                            src={logoSrc}
-                            onLoad={() => {
+                            <img
+                                ref={logoRef}
+                                style={{
+                                    visibility: "hidden",
+                                    display: "none",
+                                }}
+                                src={logoSrc}
+                                onLoad={() => {
 
-                                setBelatedLogoSrc(logoSrc);
-                            }}
-                         >
-                        </img>
+                                    setBelatedLogoSrc(logoSrc);
+                                }}
+                            >
+                            </img>
 
-                        <Card
-                            sx={{
-                                marginBottom: "10px",
-                                paddingBottom: "6px",
-                            }}
-                        >
-                            <Container>
 
-                                <FormControlLabel
-                                    label="Show logo"
-                                    control={
-                                        <Switch
-                                            checked={showLogo}
-                                            onChange={(event) => {
+                            <FormControlLabel
+                                sx={{
+                                    marginTop: "6px",
+                                    marginBottom: "14px",
+                                }}
+                                label="Show logo"
+                                control={
+                                    <Switch
+                                        checked={showLogo}
+                                        onChange={(event) => {
 
-                                                setShowLogo(event.target.checked)
-                                            }}
-                                        />
-                                    }
-                                />
+                                            setShowLogo(event.target.checked)
+                                        }}
+                                    />
+                                }
+                            />
 
-                            </Container>
+                            <Card
+                                sx={{
+                                    marginBottom: "10px",
+                                    paddingBottom: "6px",
+                                }}
+                            >
+                                <Container>
 
-                        </Card>
+                                    <Typography>
 
-                        <Card
-                            sx={{
-                                marginBottom: "10px",
-                                paddingBottom: "6px",
-                            }}
-                        >
-                            <Container>
+                                        Logo opacity: {logoOpacity}
 
-                                <Typography>
+                                    </Typography>
 
-                                    Logo opacity: {logoOpacity}
+                                    <Slider
+                                        min={0}
+                                        max={1}
+                                        step={0.01}
+                                        value={logoOpacity}
+                                        onChange={(event) => {
 
-                                </Typography>
+                                            const value = (event.target as any).value;
 
-                                <Slider
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    value={logoOpacity}
-                                    onChange={(event) => {
+                                            if (value !== undefined && value !== null) {
 
-                                        const value = (event.target as any).value;
+                                                setLogoOpacity(value);
+                                            }
+                                        }}
+                                    />
 
-                                        if (value !== undefined && value !== null) {
+                                </Container>
 
-                                            setLogoOpacity(value);
-                                        }
-                                    }}
-                                />
+                            </Card>
 
-                            </Container>
+                            <Card
+                                sx={{
+                                    marginBottom: "10px",
+                                    paddingBottom: "6px",
+                                }}
+                            >
+                                <Container>
 
-                        </Card>
+                                    <Typography>
 
-                        <Card
-                            sx={{
-                                marginBottom: "10px",
-                                paddingBottom: "6px",
-                            }}
-                        >
-                            <Container>
+                                        Logo color: {logoColor}
 
-                                <Typography>
+                                    </Typography>
 
-                                    Logo color: {logoColor}
+                                    <input
+                                        type="color"
+                                        value={logoColor}
+                                        onChange={(event) => {
 
-                                </Typography>
+                                            setLogoColor(event.target.value);
+                                        }}
+                                    />
 
-                                <input
-                                    type="color"
-                                    value={logoColor}
-                                    onChange={(event) => {
+                                </Container>
 
-                                        setLogoColor(event.target.value);
-                                    }}
-                                />
+                            </Card>
 
-                            </Container>
+                            <Card
+                                sx={{
+                                    marginBottom: "10px",
+                                    paddingBottom: "6px",
+                                }}
+                            >
+                                <Container>
 
-                        </Card>
+                                    <Typography>
 
-                        <Card
-                            sx={{
-                                marginBottom: "10px",
-                                paddingBottom: "6px",
-                            }}
-                        >
-                            <Container>
+                                        Logo size: {logoSize}
 
-                                <Typography>
+                                    </Typography>
 
-                                    Logo size: {logoSize}
+                                    <Slider
+                                        min={0.1}
+                                        max={20}
+                                        step={0.1}
+                                        value={logoSize}
+                                        onChange={(event) => {
 
-                                </Typography>
+                                            const value = (event.target as any).value;
 
-                                <Slider
-                                    min={0.1}
-                                    max={20}
-                                    step={0.1}
-                                    value={logoSize}
-                                    onChange={(event) => {
+                                            if (value !== undefined && value !== null) {
 
-                                        const value = (event.target as any).value;
+                                                setLogoSize(value);
+                                            }
+                                        }}
+                                    />
 
-                                        if (value !== undefined && value !== null) {
+                                </Container>
 
-                                            setLogoSize(value);
-                                        }
-                                    }}
-                                />
+                            </Card>
 
-                            </Container>
+                        </Container>
 
-                        </Card>
+                    </Card>
+                </ThemeProvider>
 
-                    </Container>
-
-                </Card>
-
-                <Card
-                    sx={{
-                        marginTop: "20px",
-                    }}
+                <ThemeProvider
+                    theme={showCanvasBackground ? normalTheme : darkPaperTheme}
                 >
-                    <Container>
+                    <Card
+                        sx={{
+                            marginTop: "20px",
+                        }}
+                    >
+                        <Container>
 
-                        <CanvasControlTitle
-                            text="Canvas background"
-                        />
+                            <CanvasControlTitle
+                                text="Canvas background"
+                            />
 
-                        <Card
-                            sx={{
-                                marginBottom: "10px",
-                                paddingBottom: "6px",
-                            }}
-                        >
-                            <Container>
+                            <FormControlLabel
+                                sx={{
+                                    marginTop: "6px",
+                                    marginBottom: "14px",
+                                }}
+                                label="Draw canvas background color"
+                                control={
+                                    <Switch
+                                        checked={showCanvasBackground}
+                                        onChange={(event) => {
 
-                                <Typography>
-                                    Color: {canvasBackgroundColor}
-                                </Typography>
+                                            setShowCanvasBackground(event.target.checked)
+                                        }}
+                                    />
+                                }
+                            />
 
-                                <input
-                                    type="color"
-                                    value={canvasBackgroundColor}
-                                    onChange={(event) => {
+                            <Card
+                                sx={{
+                                    marginBottom: "10px",
+                                    paddingBottom: "6px",
+                                }}
+                            >
+                                <Container>
 
-                                        setCanvasBackgroundColor(event.target.value);
+                                    <Typography>
+                                        Color: {canvasBackgroundColor}
+                                    </Typography>
+
+                                    <input
+                                        type="color"
+                                        value={canvasBackgroundColor}
+                                        onChange={(event) => {
+
+                                            setCanvasBackgroundColor(event.target.value);
+                                        }}
+                                    />
+
+                                </Container>
+                            </Card>
+                        </Container>
+                    </Card>
+                </ThemeProvider>
+
+                <ThemeProvider
+                    theme={doCanvasGridCut ? normalTheme : darkPaperTheme}
+                >
+
+                    <Card
+                        sx={{
+                            marginTop: "20px",
+                        }}
+                    >
+                        <Container>
+
+                            <CanvasControlTitle
+                                text="Canvas grid cutout"
+                            />
+
+                            <FormControlLabel
+                                sx={{
+                                    marginTop: "6px",
+                                    marginBottom: "14px",
+                                }}
+                                label="Cut out part of canvas grid"
+                                control={
+                                    <Switch
+                                        checked={doCanvasGridCut}
+                                        onChange={(event) => {
+
+                                            setDoCanvasGridCut(event.target.checked)
+                                        }}
+                                    />
+                                }
+                            />
+
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "row",
+                                }}
+                            >
+
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "6px",
                                     }}
-                                />
+                                >
 
-                            </Container>
-                        </Card>
+                                    <DimensionControl
+                                        theDimension={canvasGridCutColumnStart}
+                                        theDimensionDescription="Column start"
+                                        min={1}
+                                        max={50}
+                                        onUpdateDimension={setCanvasGridCutColumnStart}
+                                    />
 
-                        <Card
-                            sx={{
-                                marginBottom: "10px",
-                                paddingBottom: "6px",
-                            }}
-                        >
-                            <Container>
+                                    <DimensionControl
+                                        theDimension={canvasGridCutColumnEnd}
+                                        theDimensionDescription="Column end"
+                                        min={1}
+                                        max={50}
+                                        onUpdateDimension={setCanvasGridCutColumnEnd}
+                                    />
 
-                                <FormControlLabel
-                                    label="Draw canvas background color"
-                                    control={
-                                        <Switch
-                                            checked={showCanvasBackground}
-                                            onChange={(event) => {
+                                </Box>
 
-                                                setShowCanvasBackground(event.target.checked)
-                                            }}
-                                        />
-                                    }
-                                />
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "6px",
+                                        marginLeft: "16px",
+                                    }}
+                                >
 
-                            </Container>
-                        </Card>
-                    </Container>
-                </Card>
+                                    <DimensionControl
+                                        theDimension={canvasGridCutRowStart}
+                                        theDimensionDescription="Row start"
+                                        min={1}
+                                        max={50}
+                                        onUpdateDimension={setCanvasGridCutRowStart}
+                                    />
+
+                                    <DimensionControl
+                                        theDimension={canvasGridCutRowEnd}
+                                        theDimensionDescription="Row end"
+                                        min={1}
+                                        max={50}
+                                        onUpdateDimension={setCanvasGridCutRowEnd}
+                                    />
+
+                                </Box>
+
+                            </Box>
+
+                        </Container>
+                    </Card>
+                </ThemeProvider>
+
+                <ThemeProvider
+                    theme={doCanvasGap ? normalTheme : darkPaperTheme}
+                >
+
+                    <Card
+                        sx={{
+                            marginTop: "20px",
+                        }}
+                    >
+                        <Container>
+
+                            <CanvasControlTitle
+                                text="Canvas gap"
+                            />
+
+                            <FormControlLabel
+                                sx={{
+                                    marginTop: "6px",
+                                    marginBottom: "14px",
+                                }}
+                                label="Have gaps between image block items"
+                                control={
+                                    <Switch
+                                        checked={doCanvasGap}
+                                        onChange={(event) => {
+
+                                            setDoCanvasGap(event.target.checked)
+                                        }}
+                                    />
+                                }
+                            />
+
+                            <DimensionControl
+                                theDimension={canvasGapSize}
+                                theDimensionDescription="Gap size"
+                                min={1}
+                                max={20}
+                                onUpdateDimension={setCanvasGapSize}
+                            />
+
+                        </Container>
+                    </Card>
+                </ThemeProvider>
 
                 <Card
                     sx={{
