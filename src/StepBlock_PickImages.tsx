@@ -287,9 +287,6 @@ export function StepBlock_PickImages(
             <Typography>
                 Picked: {pickedFiles.size}/{openedFiles.size}.
             </Typography>
-            <Typography>
-                Sorted by file name.
-            </Typography>
             <Button
                 variant="contained"
                 sx={{
