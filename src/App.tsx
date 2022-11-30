@@ -9,6 +9,8 @@ import { StepBlock_PickImages } from './StepBlock_PickImages';
 import { ImageFileMap } from './ImageFileMap';
 import { StepBlock_AdjustGeneratedImage } from './StepBlock_AdjustGeneratedImage';
 import { StepBlock_GenerateImage } from './StepBlock_GenerateImage';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 
 
 
@@ -41,6 +43,8 @@ function App() {
 
   const [generatedImageDataURL, setGeneratedImageDataURL] = React.useState<string | null>(null);
 
+  const [fileOrdering, setFileOrdering] = React.useState<Array<string>>([]);
+
   React.useEffect(
     () => {
 
@@ -71,10 +75,29 @@ function App() {
     },
     [imageFiles, pickedFiles]
   );
+  const [snackbarNonUniqueFileWarning_open, setSnackbarNonUniqueFileWarning_open] = React.useState(false);
+
+  const handleClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
+
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    setSnackbarNonUniqueFileWarning_open(false);
+  };
+
+  const [latestDuplicateFileName, setLatestDuplicateFileName] = React.useState("");
 
   return (
 
     <ThemeProvider theme={theme}>
+
+
+      <Snackbar open={snackbarNonUniqueFileWarning_open} autoHideDuration={6000} onClose={handleClose}>
+        <Alert onClose={handleClose} severity="warning" sx={{ width: '100%' }}>
+          Attempted to add file(s) with duplicate names, including: {latestDuplicateFileName}.
+        </Alert>
+      </Snackbar>
 
       <Container
       >
@@ -101,7 +124,17 @@ function App() {
 
                 const file = files[i];
 
-                newMap.set(file.name, file);
+                // unique file names required
+                if (!newMap.has(file.name)) {
+
+                  newMap.set(file.name, file);
+                }
+                else {
+
+                  setLatestDuplicateFileName(file.name);
+
+                  setSnackbarNonUniqueFileWarning_open(true);
+                }
               }
 
               return newMap;
@@ -134,10 +167,13 @@ function App() {
           openedFiles={imageFiles}
           pickedFiles={pickedFiles}
           setPickedFiles={setPickedFiles}
+          fileOrdering={fileOrdering}
+          setFileOrdering={setFileOrdering}
         />
 
         <StepBlock_AdjustGeneratedImage
           pickedFiles={pickedFiles}
+          fileOrdering={fileOrdering}
           setGeneratedImageDataURL={setGeneratedImageDataURL}
         />
 

@@ -1,9 +1,12 @@
 
 
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import ExpandLess from "@mui/icons-material/ExpandLess";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
+import Collapse from "@mui/material/Collapse";
 import grey from "@mui/material/colors/grey";
 import Container from "@mui/material/Container";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -17,6 +20,7 @@ import { ThemeProvider } from "@mui/system";
 import React from "react";
 import { getLogoWithColor } from "./Logo";
 import { StepBlock } from "./StepBlock";
+import Popper from "@mui/material/Popper";
 
 const darkPaperTheme = createTheme({
 
@@ -168,9 +172,11 @@ function getStretchedDrawing(
 export function StepBlock_AdjustGeneratedImage(
     {
         pickedFiles,
+        fileOrdering,
         setGeneratedImageDataURL,
     }: {
         pickedFiles: Map<string, HTMLImageElement>;
+        fileOrdering: Array<string>,
         setGeneratedImageDataURL: React.Dispatch<React.SetStateAction<string | null>>,
     }
 ) {
@@ -178,9 +184,6 @@ export function StepBlock_AdjustGeneratedImage(
     const [pickedImageBitmaps, setPickedImageBitmaps] = React.useState<Map<string, ImageBitmap | Promise<ImageBitmap>>>(new Map());
 
     const canvasRef = React.createRef<HTMLCanvasElement>();
-
-    const [canvasWidth, setCanvasWidth] = React.useState(800);
-    const [canvasHeight, setCanvasHeight] = React.useState(600);
 
     const [imageBlockItemWidth, setImageBlockItemWidth] = React.useState(256);
     const [imageBlockItemHeight, setImageBlockItemHeight] = React.useState(256);
@@ -208,17 +211,32 @@ export function StepBlock_AdjustGeneratedImage(
 
     const [canvasGridCutColumnStart, setCanvasGridCutColumnStart] = React.useState(2);
 
-    const [canvasGridCutColumnEnd, setCanvasGridCutColumnEnd] = React.useState(3);
-
     const [canvasGridCutRowStart, setCanvasGridCutRowStart] = React.useState(2);
 
-    const [canvasGridCutRowEnd, setCanvasGridCutRowEnd] = React.useState(3);
+    const [canvasGridCutColumnWidth, setCanvasGridCutColumnWidth] = React.useState(1);
+
+    const canvasGridCutColumnEnd = canvasGridCutColumnStart + canvasGridCutColumnWidth - 1;
+
+    const [canvasGridCutRowHeight, setCanvasGridCutRowHeight] = React.useState(1);
+
+    const canvasGridCutRowEnd = canvasGridCutRowStart + canvasGridCutRowHeight - 1;
 
     const [doCanvasGridCut, setDoCanvasGridCut] = React.useState(false);
 
     const [doCanvasGap, setDoCanvasGap] = React.useState(true);
 
     const [canvasGapSize, setCanvasGapSize] = React.useState(2);
+
+
+
+    const fittingDimensionX = (imageBlockItemWidth * columnCount + (doCanvasGap ? canvasGapSize*(columnCount - 1) : 0));
+    const fittingDimensionY = (imageBlockItemHeight * rowCount + (doCanvasGap ? canvasGapSize*(rowCount - 1) : 0));
+
+    const [canvasWidth, setCanvasWidth] = React.useState(fittingDimensionX);
+    const [canvasHeight, setCanvasHeight] = React.useState(fittingDimensionY);
+
+    const fittingDimensions =
+        fittingDimensionX*fittingDimensionY === canvasWidth * canvasHeight;
 
     React.useEffect(
         () => {
@@ -301,10 +319,6 @@ export function StepBlock_AdjustGeneratedImage(
                         ctx.restore();
                     }
 
-                    const pickedFiles = Array.from(pickedImageBitmaps.keys());
-
-                    pickedFiles.sort();
-
                     let pickedFileIndex = 0;
 
                     for (let rowNum = 1; rowNum <= rowCount; rowNum++) {
@@ -318,7 +332,12 @@ export function StepBlock_AdjustGeneratedImage(
 
                             if (!shouldCutOutOfGrid) {
 
-                                const pickedFile = pickedFiles[pickedFileIndex];
+                                while (pickedFileIndex < fileOrdering.length && pickedImageBitmaps.get(fileOrdering[pickedFileIndex]) === undefined) {
+
+                                    pickedFileIndex++;
+                                }
+
+                                const pickedFile = fileOrdering[pickedFileIndex];
 
                                 const pickedImageBitmap = pickedImageBitmaps.get(pickedFile);
 
@@ -396,25 +415,27 @@ export function StepBlock_AdjustGeneratedImage(
             }
         },
         [
-            pickedFiles, pickedImageBitmaps, canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight, columnCount, rowCount, cutOrStretched,
+            pickedImageBitmaps, canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight, columnCount, rowCount, cutOrStretched,
             logoRef, showLogo, logoOpacity, logoColor, belatedLogoSrc, logoSize, canvasRef, setGeneratedImageDataURL, canvasBackgroundColor, showCanvasBackground,
             canvasGridCutColumnStart, canvasGridCutColumnEnd, canvasGridCutRowStart, canvasGridCutRowEnd, doCanvasGridCut,
-            doCanvasGap, canvasGapSize,
+            doCanvasGap, canvasGapSize, fileOrdering,
         ]
     );
 
-    const fittingDimensionX = (imageBlockItemWidth * columnCount + (doCanvasGap ? canvasGapSize*(columnCount - 1) : 0));
-    const fittingDimensionY = (imageBlockItemHeight * rowCount + (doCanvasGap ? canvasGapSize*(rowCount - 1) : 0));
+    const pickedFilesCount = pickedFiles.size;
 
-    const fittingDimensions =
-        fittingDimensionX*fittingDimensionY === canvasWidth * canvasHeight;
+    const availableBlocks = getAvailableBlocks(columnCount, rowCount, canvasGridCutColumnStart, canvasGridCutColumnEnd, canvasGridCutRowStart, canvasGridCutRowEnd, doCanvasGridCut);
+
+    const insufficientBlocks = pickedFilesCount > availableBlocks;
 
     const checks = [
         {
-            checkFailedShouldWarn:
-                Array.from(pickedFiles.keys()).length >
-                getAvailableBlocks(columnCount, rowCount, canvasGridCutColumnStart, canvasGridCutColumnEnd, canvasGridCutRowStart, canvasGridCutRowEnd, doCanvasGridCut),
-            warningString: "Grid size is smaller than picked images, not all images are included. Please increase column or row count, or pick fewer images.",
+            checkFailedShouldWarn: insufficientBlocks,
+            warningString:
+                `
+                Grid size is smaller than picked images, not all images are included.
+                Please increase column or row count, or pick fewer images. Picked files/grid cells: ${pickedFilesCount}/${availableBlocks}.
+                `,
         },
         {
             checkFailedShouldWarn: !fittingDimensions,
@@ -448,12 +469,169 @@ export function StepBlock_AdjustGeneratedImage(
 
             }}
         >
-            Fit canvas size to column & row count and image block item size
+            Fit canvas size to column & row count and image block item size (new size: {fittingDimensionX}x{fittingDimensionY})
 
         </Button>
     );
 
+    const attemptedFitForColumnsRowsAndCut = (() => {
+
+        for (let i = 3; i <= 20; i++) {
+
+            const fits: Array<{
+                cutColumnStart: number,
+                cutColumnWidth: number,
+                cutRowStart: number,
+                cutRowHeight: number,
+                columnCount: number,
+                rowCount: number,
+            }> = [];
+
+            {
+                const uncutAvailableBlocks = i*i;
+
+                const cutLength = i % 2 === 0 ? 2 : 1;
+
+                const cutAvailableBlocks = uncutAvailableBlocks - cutLength*cutLength;
+
+                if (cutAvailableBlocks >= pickedFilesCount) {
+
+                    const cutColumnRowStart = Math.ceil(i/2);
+
+                    const firstFit = {
+                        cutColumnStart: cutColumnRowStart,
+                        cutColumnWidth: cutLength,
+                        cutRowStart: cutColumnRowStart,
+                        cutRowHeight: cutLength,
+                        columnCount: i,
+                        rowCount: i,
+                    } as const;
+
+                    fits.push(firstFit);
+                }
+            }
+
+            {
+                // try to see if we can cut off one row and still fit
+
+                const c = i;
+
+                const r = i - 1;
+
+                const uncutAvailableBlocks = c*r;
+
+                const cutColumnWidth = c % 2 === 0 ? 2 : 1;
+                const cutRowHeight = r % 2 === 0 ? 2 : 1;
+
+                const cutAvailableBlocks = uncutAvailableBlocks - cutColumnWidth*cutRowHeight;
+
+                if (cutAvailableBlocks >= pickedFilesCount) {
+
+                    const firstFit = {
+                        cutColumnStart:  Math.ceil(c/2),
+                        cutColumnWidth,
+                        cutRowStart:  Math.ceil(r/2),
+                        cutRowHeight,
+                        columnCount: c,
+                        rowCount: r,
+                    } as const;
+
+                    fits.push(firstFit);
+                }
+            }
+
+            if (fits.length > 0) {
+
+                return fits[fits.length - 1];
+            }
+        }
+
+        return null;
+
+    })();
+
+    const attemptFitColumnsRowsAndCutButton = (
+        <Button
+            variant="contained"
+            sx={{
+                marginBottom: "10px",
+            }}
+            disabled={
+                attemptedFitForColumnsRowsAndCut === null ||
+                (() => {
+
+                    const {
+                        cutColumnStart,
+                        cutColumnWidth,
+                        cutRowStart,
+                        cutRowHeight,
+                    } = attemptedFitForColumnsRowsAndCut;
+
+                    return (
+                        attemptedFitForColumnsRowsAndCut.columnCount === columnCount &&
+                        attemptedFitForColumnsRowsAndCut.rowCount === rowCount &&
+                        cutColumnStart === canvasGridCutColumnStart &&
+                        cutColumnWidth === canvasGridCutColumnWidth &&
+                        cutRowStart === canvasGridCutRowStart &&
+                        cutRowHeight === canvasGridCutRowHeight &&
+                        doCanvasGridCut
+                    );
+                })()
+            }
+            onClick={() => {
+
+                if (attemptedFitForColumnsRowsAndCut !== null) {
+
+                    const {
+                        cutColumnStart,
+                        cutColumnWidth,
+                        cutRowStart,
+                        cutRowHeight,
+                    } = attemptedFitForColumnsRowsAndCut;
+
+                    setColumnCount(attemptedFitForColumnsRowsAndCut.columnCount);
+                    setRowCount(attemptedFitForColumnsRowsAndCut.rowCount);
+
+                    setCanvasGridCutColumnStart(cutColumnStart);
+                    setCanvasGridCutColumnWidth(cutColumnWidth);
+
+                    setCanvasGridCutRowStart(cutRowStart);
+                    setCanvasGridCutRowHeight(cutRowHeight);
+
+                    setDoCanvasGridCut(true);
+                }
+            }}
+        >
+            {
+                (() => {
+
+                    const innerText =
+                        attemptedFitForColumnsRowsAndCut === null
+                            ? ""
+                            : `new grid size: ${attemptedFitForColumnsRowsAndCut.columnCount}x${attemptedFitForColumnsRowsAndCut.rowCount}`
+
+
+                    return `Set column & row count and cutout to include all images (${innerText})`;
+                })()
+            }
+
+        </Button>
+    );
+
+    const columnRowCutAttempt_notPresentOrNeeded = !insufficientBlocks || attemptedFitForColumnsRowsAndCut === null;
+
     const logoSrc = getLogoWithColor(logoColor);
+
+    const belowCanvasElementRef = React.useRef<HTMLDivElement>(null);
+
+    const [canvasElementAnchor, setCanvasElementAnchor] = React.useState<HTMLDivElement | null>(null);
+
+    React.useEffect(
+        () => {
+
+            setCanvasElementAnchor(belowCanvasElementRef.current);
+        }
+    );
 
     return (
         <StepBlock
@@ -480,556 +658,490 @@ export function StepBlock_AdjustGeneratedImage(
                     ref={canvasRef}
                 />
 
-                <Card>
+                <Box
+                    ref={belowCanvasElementRef}
+                >
+                </Box>
 
-                    <Container>
-
-                        <CanvasControlTitle
-                            text="Canvas size"
-                        />
-
-                        <CanvasDimensionControl
-                            canvasDimension={canvasWidth}
-                            canvasDimensionDescription="Width"
-                            onUpdateDimension={setCanvasWidth}
-                        />
-
-                        <CanvasDimensionControl
-                            canvasDimension={canvasHeight}
-                            canvasDimensionDescription="Height"
-                            onUpdateDimension={setCanvasHeight}
-                        />
-
+                <Popper
+                    open={warnings.length !== 0}
+                    anchorEl={canvasElementAnchor}
+                    sx={{
+                        visibility: canvasElementAnchor !== null ? "visible" : "hidden",
+                        opacity: 0.95,
+                    }}
+                    placement="top"
+                    modifiers={[
                         {
-                            fitCanvasSizeButton
+                            name: 'flip',
+                            enabled: false,
+                        },
+                    ]}
+                >
+                    <Warnings
+                        warnings={warnings}
+                        fittingDimensions={fittingDimensions}
+                        fitCanvasSizeButton={fitCanvasSizeButton}
+                        columnRowCutAttempt_notPresentOrNeeded={columnRowCutAttempt_notPresentOrNeeded}
+                        attemptFitColumnsRowsAndCutButton={attemptFitColumnsRowsAndCutButton}
+                    />
+                </Popper>
+
+                <MainCard
+                    title={`Canvas size (${canvasWidth}x${canvasHeight})`}
+                    collapsible={true}
+                    defaultCollapsed={true}
+                >
+
+                    <CanvasDimensionControl
+                        canvasDimension={canvasWidth}
+                        canvasDimensionDescription="Width"
+                        onUpdateDimension={setCanvasWidth}
+                    />
+
+                    <CanvasDimensionControl
+                        canvasDimension={canvasHeight}
+                        canvasDimensionDescription="Height"
+                        onUpdateDimension={setCanvasHeight}
+                    />
+
+                    {
+                        fitCanvasSizeButton
+                    }
+
+
+                </MainCard>
+
+                <MainCard
+                    title={`Columns and rows (${columnCount}x${rowCount})`}
+                    collapsible={true}
+                >
+
+                    <DimensionControl
+                        theDimension={columnCount}
+                        theDimensionDescription="Column count"
+                        min={1}
+                        max={50}
+                        onUpdateDimension={setColumnCount}
+                    />
+
+                    <DimensionControl
+                        theDimension={rowCount}
+                        theDimensionDescription="Row count"
+                        min={1}
+                        max={50}
+                        onUpdateDimension={setRowCount}
+                    />
+
+                    {
+                        fitCanvasSizeButton
+                    }
+
+                    {
+                        attemptFitColumnsRowsAndCutButton
+                    }
+
+                </MainCard>
+
+
+                <MainCard
+                    title="Logo"
+                    collapsible={true}
+                    switchedOnTheme={showLogo}
+                >
+                    <img
+                        ref={logoRef}
+                        style={{
+                            visibility: "hidden",
+                            display: "none",
+                        }}
+                        src={logoSrc}
+                        onLoad={() => {
+
+                            setBelatedLogoSrc(logoSrc);
+                        }}
+                    >
+                    </img>
+
+
+                    <FormControlLabel
+                        sx={{
+                            marginTop: "6px",
+                            marginBottom: "14px",
+                        }}
+                        label="Show logo"
+                        control={
+                            <Switch
+                                checked={showLogo}
+                                onChange={(event) => {
+
+                                    setShowLogo(event.target.checked)
+                                }}
+                            />
                         }
+                    />
 
-                    </Container>
+                    <Card
+                        sx={{
+                            marginBottom: "10px",
+                            paddingBottom: "6px",
+                        }}
+                    >
+                        <Container>
 
-                </Card>
+                            <Typography>
 
-                <Card
-                    sx={{
-                        marginTop: "20px",
-                    }}
+                                Logo opacity: {logoOpacity}
+
+                            </Typography>
+
+                            <Slider
+                                min={0}
+                                max={1}
+                                step={0.01}
+                                value={logoOpacity}
+                                onChange={(event) => {
+
+                                    const value = (event.target as any).value;
+
+                                    if (value !== undefined && value !== null) {
+
+                                        setLogoOpacity(value);
+                                    }
+                                }}
+                            />
+
+                        </Container>
+
+                    </Card>
+
+                    <Card
+                        sx={{
+                            marginBottom: "10px",
+                            paddingBottom: "6px",
+                        }}
+                    >
+                        <Container>
+
+                            <Typography>
+
+                                Logo color: {logoColor}
+
+                            </Typography>
+
+                            <input
+                                type="color"
+                                value={logoColor}
+                                onChange={(event) => {
+
+                                    setLogoColor(event.target.value);
+                                }}
+                            />
+
+                        </Container>
+
+                    </Card>
+
+                    <Card
+                        sx={{
+                            marginBottom: "10px",
+                            paddingBottom: "6px",
+                        }}
+                    >
+                        <Container>
+
+                            <Typography>
+
+                                Logo size: {logoSize}
+
+                            </Typography>
+
+                            <Slider
+                                min={0.1}
+                                max={20}
+                                step={0.1}
+                                value={logoSize}
+                                onChange={(event) => {
+
+                                    const value = (event.target as any).value;
+
+                                    if (value !== undefined && value !== null) {
+
+                                        setLogoSize(value);
+                                    }
+                                }}
+                            />
+
+                        </Container>
+
+                    </Card>
+
+                </MainCard>
+
+                <MainCard
+                    title="Canvas background"
+                    collapsible={true}
+                    switchedOnTheme={showCanvasBackground}
                 >
-                    <Container>
+
+                    <FormControlLabel
+                        sx={{
+                            marginTop: "6px",
+                            marginBottom: "14px",
+                        }}
+                        label="Draw canvas background color"
+                        control={
+                            <Switch
+                                checked={showCanvasBackground}
+                                onChange={(event) => {
+
+                                    setShowCanvasBackground(event.target.checked)
+                                }}
+                            />
+                        }
+                    />
+
+                    <Card
+                        sx={{
+                            marginBottom: "10px",
+                            paddingBottom: "6px",
+                        }}
+                    >
+                        <Container>
+
+                            <Typography>
+                                Color: {canvasBackgroundColor}
+                            </Typography>
+
+                            <input
+                                type="color"
+                                value={canvasBackgroundColor}
+                                onChange={(event) => {
+
+                                    setCanvasBackgroundColor(event.target.value);
+                                }}
+                            />
+
+                        </Container>
+                    </Card>
+                </MainCard>
 
 
-                        <CanvasControlTitle
-                            text="Image block item size (not the whole image)"
-                        />
-
-                        <DimensionControl
-                            theDimension={imageBlockItemWidth}
-                            theDimensionDescription="Width"
-                            min={10}
-                            max={1000}
-                            onUpdateDimension={setImageBlockItemWidth}
-                        />
-
-                        <DimensionControl
-                            theDimension={imageBlockItemHeight}
-                            theDimensionDescription="Height"
-                            min={10}
-                            max={1000}
-                            onUpdateDimension={setImageBlockItemHeight}
-                        />
-
-                    </Container>
-                </Card>
-
-                <Card
-                    sx={{
-                        marginTop: "20px",
-                    }}
+                <MainCard
+                    title="Canvas grid cutout"
+                    collapsible={true}
+                    switchedOnTheme={doCanvasGridCut}
                 >
-                    <Container>
+                    <FormControlLabel
+                        sx={{
+                            marginTop: "6px",
+                            marginBottom: "14px",
+                        }}
+                        label="Cut out part of canvas grid"
+                        control={
+                            <Switch
+                                checked={doCanvasGridCut}
+                                onChange={(event) => {
 
+                                    setDoCanvasGridCut(event.target.checked)
+                                }}
+                            />
+                        }
+                    />
 
-                        <CanvasControlTitle
-                            text="Columns and rows"
-                        />
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: "row",
+                        }}
+                    >
 
-                        <DimensionControl
-                            theDimension={columnCount}
-                            theDimensionDescription="Column count"
-                            min={1}
-                            max={50}
-                            onUpdateDimension={setColumnCount}
-                        />
-
-                        <DimensionControl
-                            theDimension={rowCount}
-                            theDimensionDescription="Row count"
-                            min={1}
-                            max={50}
-                            onUpdateDimension={setRowCount}
-                        />
-
-                    </Container>
-                </Card>
-
-                <Card
-                    sx={{
-                        marginTop: "20px",
-                    }}
-                >
-                    <Container>
-
-                        <CanvasControlTitle
-                            text="Image block/image source fitting method"
-                        />
-
-                        <Card
+                        <Box
                             sx={{
-                                marginBottom: "10px",
-                                paddingBottom: "6px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px",
                             }}
                         >
-                            <Container>
 
-                                <RadioGroup
-                                    value={cutOrStretched}
-                                    onChange={(event) => {
-
-
-                                        const value = event.target.value;
-
-                                        let num = Number.parseInt(value);
-
-                                        if (Number.isNaN(num)) {
-
-                                            num = 0;
-                                        }
-
-                                        setCutOrStretched(clamp(0, num, 1));
-                                    }}
-                                >
-                                    <FormControlLabel value={0} control={<Radio />} label="Cut (preserves aspect ratio, but may cut part of the image)"></FormControlLabel>
-                                    <FormControlLabel value={1} control={<Radio />} label="Stretched (may change aspect ratio)"></FormControlLabel>
-                                </RadioGroup>
-
-                            </Container>
-                        </Card>
-                    </Container>
-                </Card>
-
-
-                <ThemeProvider
-                    theme={showLogo ? normalTheme : darkPaperTheme}
-                >
-                    <Card
-                        sx={{
-                            marginTop: "20px"
-                        }}
-                    >
-                        <Container>
-
-                            <CanvasControlTitle
-                                text="Logo"
-                            />
-
-                            <img
-                                ref={logoRef}
-                                style={{
-                                    visibility: "hidden",
-                                    display: "none",
-                                }}
-                                src={logoSrc}
-                                onLoad={() => {
-
-                                    setBelatedLogoSrc(logoSrc);
-                                }}
-                            >
-                            </img>
-
-
-                            <FormControlLabel
-                                sx={{
-                                    marginTop: "6px",
-                                    marginBottom: "14px",
-                                }}
-                                label="Show logo"
-                                control={
-                                    <Switch
-                                        checked={showLogo}
-                                        onChange={(event) => {
-
-                                            setShowLogo(event.target.checked)
-                                        }}
-                                    />
-                                }
-                            />
-
-                            <Card
-                                sx={{
-                                    marginBottom: "10px",
-                                    paddingBottom: "6px",
-                                }}
-                            >
-                                <Container>
-
-                                    <Typography>
-
-                                        Logo opacity: {logoOpacity}
-
-                                    </Typography>
-
-                                    <Slider
-                                        min={0}
-                                        max={1}
-                                        step={0.01}
-                                        value={logoOpacity}
-                                        onChange={(event) => {
-
-                                            const value = (event.target as any).value;
-
-                                            if (value !== undefined && value !== null) {
-
-                                                setLogoOpacity(value);
-                                            }
-                                        }}
-                                    />
-
-                                </Container>
-
-                            </Card>
-
-                            <Card
-                                sx={{
-                                    marginBottom: "10px",
-                                    paddingBottom: "6px",
-                                }}
-                            >
-                                <Container>
-
-                                    <Typography>
-
-                                        Logo color: {logoColor}
-
-                                    </Typography>
-
-                                    <input
-                                        type="color"
-                                        value={logoColor}
-                                        onChange={(event) => {
-
-                                            setLogoColor(event.target.value);
-                                        }}
-                                    />
-
-                                </Container>
-
-                            </Card>
-
-                            <Card
-                                sx={{
-                                    marginBottom: "10px",
-                                    paddingBottom: "6px",
-                                }}
-                            >
-                                <Container>
-
-                                    <Typography>
-
-                                        Logo size: {logoSize}
-
-                                    </Typography>
-
-                                    <Slider
-                                        min={0.1}
-                                        max={20}
-                                        step={0.1}
-                                        value={logoSize}
-                                        onChange={(event) => {
-
-                                            const value = (event.target as any).value;
-
-                                            if (value !== undefined && value !== null) {
-
-                                                setLogoSize(value);
-                                            }
-                                        }}
-                                    />
-
-                                </Container>
-
-                            </Card>
-
-                        </Container>
-
-                    </Card>
-                </ThemeProvider>
-
-                <ThemeProvider
-                    theme={showCanvasBackground ? normalTheme : darkPaperTheme}
-                >
-                    <Card
-                        sx={{
-                            marginTop: "20px",
-                        }}
-                    >
-                        <Container>
-
-                            <CanvasControlTitle
-                                text="Canvas background"
-                            />
-
-                            <FormControlLabel
-                                sx={{
-                                    marginTop: "6px",
-                                    marginBottom: "14px",
-                                }}
-                                label="Draw canvas background color"
-                                control={
-                                    <Switch
-                                        checked={showCanvasBackground}
-                                        onChange={(event) => {
-
-                                            setShowCanvasBackground(event.target.checked)
-                                        }}
-                                    />
-                                }
-                            />
-
-                            <Card
-                                sx={{
-                                    marginBottom: "10px",
-                                    paddingBottom: "6px",
-                                }}
-                            >
-                                <Container>
-
-                                    <Typography>
-                                        Color: {canvasBackgroundColor}
-                                    </Typography>
-
-                                    <input
-                                        type="color"
-                                        value={canvasBackgroundColor}
-                                        onChange={(event) => {
-
-                                            setCanvasBackgroundColor(event.target.value);
-                                        }}
-                                    />
-
-                                </Container>
-                            </Card>
-                        </Container>
-                    </Card>
-                </ThemeProvider>
-
-                <ThemeProvider
-                    theme={doCanvasGridCut ? normalTheme : darkPaperTheme}
-                >
-
-                    <Card
-                        sx={{
-                            marginTop: "20px",
-                        }}
-                    >
-                        <Container>
-
-                            <CanvasControlTitle
-                                text="Canvas grid cutout"
-                            />
-
-                            <FormControlLabel
-                                sx={{
-                                    marginTop: "6px",
-                                    marginBottom: "14px",
-                                }}
-                                label="Cut out part of canvas grid"
-                                control={
-                                    <Switch
-                                        checked={doCanvasGridCut}
-                                        onChange={(event) => {
-
-                                            setDoCanvasGridCut(event.target.checked)
-                                        }}
-                                    />
-                                }
-                            />
-
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    flexDirection: "row",
-                                }}
-                            >
-
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: "6px",
-                                    }}
-                                >
-
-                                    <DimensionControl
-                                        theDimension={canvasGridCutColumnStart}
-                                        theDimensionDescription="Column start"
-                                        min={1}
-                                        max={50}
-                                        onUpdateDimension={setCanvasGridCutColumnStart}
-                                    />
-
-                                    <DimensionControl
-                                        theDimension={canvasGridCutColumnEnd}
-                                        theDimensionDescription="Column end"
-                                        min={1}
-                                        max={50}
-                                        onUpdateDimension={setCanvasGridCutColumnEnd}
-                                    />
-
-                                </Box>
-
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: "6px",
-                                        marginLeft: "16px",
-                                    }}
-                                >
-
-                                    <DimensionControl
-                                        theDimension={canvasGridCutRowStart}
-                                        theDimensionDescription="Row start"
-                                        min={1}
-                                        max={50}
-                                        onUpdateDimension={setCanvasGridCutRowStart}
-                                    />
-
-                                    <DimensionControl
-                                        theDimension={canvasGridCutRowEnd}
-                                        theDimensionDescription="Row end"
-                                        min={1}
-                                        max={50}
-                                        onUpdateDimension={setCanvasGridCutRowEnd}
-                                    />
-
-                                </Box>
-
-                            </Box>
-
-                        </Container>
-                    </Card>
-                </ThemeProvider>
-
-                <ThemeProvider
-                    theme={doCanvasGap ? normalTheme : darkPaperTheme}
-                >
-
-                    <Card
-                        sx={{
-                            marginTop: "20px",
-                        }}
-                    >
-                        <Container>
-
-                            <CanvasControlTitle
-                                text="Canvas gap"
-                            />
-
-                            <FormControlLabel
-                                sx={{
-                                    marginTop: "6px",
-                                    marginBottom: "14px",
-                                }}
-                                label="Have gaps between image block items"
-                                control={
-                                    <Switch
-                                        checked={doCanvasGap}
-                                        onChange={(event) => {
-
-                                            setDoCanvasGap(event.target.checked)
-                                        }}
-                                    />
-                                }
+                            <DimensionControl
+                                theDimension={canvasGridCutColumnStart}
+                                theDimensionDescription="Column start"
+                                min={1}
+                                max={50}
+                                onUpdateDimension={setCanvasGridCutColumnStart}
                             />
 
                             <DimensionControl
-                                theDimension={canvasGapSize}
-                                theDimensionDescription="Gap size"
+                                theDimension={canvasGridCutColumnWidth}
+                                theDimensionDescription="Width"
                                 min={1}
-                                max={20}
-                                onUpdateDimension={setCanvasGapSize}
+                                max={50}
+                                onUpdateDimension={setCanvasGridCutColumnWidth}
                             />
+
+                        </Box>
+
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px",
+                                marginLeft: "16px",
+                            }}
+                        >
+
+                            <DimensionControl
+                                theDimension={canvasGridCutRowStart}
+                                theDimensionDescription="Row start"
+                                min={1}
+                                max={50}
+                                onUpdateDimension={setCanvasGridCutRowStart}
+                            />
+
+                            <DimensionControl
+                                theDimension={canvasGridCutRowHeight}
+                                theDimensionDescription="Height"
+                                min={1}
+                                max={50}
+                                onUpdateDimension={setCanvasGridCutRowHeight}
+                            />
+
+                        </Box>
+
+                    </Box>
+
+                    {
+                        attemptFitColumnsRowsAndCutButton
+                    }
+                </MainCard>
+
+                <MainCard
+                    title="Canvas gap"
+                    collapsible={true}
+                    switchedOnTheme={doCanvasGap}
+                >
+
+                    <FormControlLabel
+                        sx={{
+                            marginTop: "6px",
+                            marginBottom: "14px",
+                        }}
+                        label="Have gaps between image block items"
+                        control={
+                            <Switch
+                                checked={doCanvasGap}
+                                onChange={(event) => {
+
+                                    setDoCanvasGap(event.target.checked)
+                                }}
+                            />
+                        }
+                    />
+
+                    <DimensionControl
+                        theDimension={canvasGapSize}
+                        theDimensionDescription="Gap size"
+                        min={1}
+                        max={20}
+                        onUpdateDimension={setCanvasGapSize}
+                    />
+                </MainCard>
+
+                <MainCard
+                    title="Image block/image source fitting method"
+                    collapsible={true}
+                    defaultCollapsed={true}
+                >
+                    <Card
+                        sx={{
+                            marginBottom: "10px",
+                            paddingBottom: "6px",
+                        }}
+                    >
+                        <Container>
+
+                            <RadioGroup
+                                value={cutOrStretched}
+                                onChange={(event) => {
+
+
+                                    const value = event.target.value;
+
+                                    let num = Number.parseInt(value);
+
+                                    if (Number.isNaN(num)) {
+
+                                        num = 0;
+                                    }
+
+                                    setCutOrStretched(clamp(0, num, 1));
+                                }}
+                            >
+                                <FormControlLabel value={0} control={<Radio />} label="Cut (preserves aspect ratio, but may cut part of the image)"></FormControlLabel>
+                                <FormControlLabel value={1} control={<Radio />} label="Stretched (may change aspect ratio)"></FormControlLabel>
+                            </RadioGroup>
 
                         </Container>
                     </Card>
-                </ThemeProvider>
+                </MainCard>
 
-                <Card
-                    sx={{
-                        marginTop: "20px",
-                    }}
+                <MainCard
+                    title="Image block item size (not the whole image)"
+                    collapsible={true}
+                    defaultCollapsed={true}
                 >
-                    <Container>
 
-                        <CanvasControlTitle
-                            text="Misc"
-                        />
+                    <DimensionControl
+                        theDimension={imageBlockItemWidth}
+                        theDimensionDescription="Width"
+                        min={10}
+                        max={1000}
+                        onUpdateDimension={setImageBlockItemWidth}
+                    />
 
-                        <Card
-                            sx={{
-                                marginBottom: "10px",
-                                paddingBottom: "6px",
-                            }}
-                        >
-                            <Container>
+                    <DimensionControl
+                        theDimension={imageBlockItemHeight}
+                        theDimensionDescription="Height"
+                        min={10}
+                        max={1000}
+                        onUpdateDimension={setImageBlockItemHeight}
+                    />
 
-                                <Typography>
-                                    Number of picked images: {Array.from(pickedFiles.keys()).length}
-                                </Typography>
+                    {
+                        fitCanvasSizeButton
+                    }
+                </MainCard>
 
-                            </Container>
-                        </Card>
-                    </Container>
-                </Card>
-
-                <Card
-                    sx={{
-                        marginTop: "20px",
-
-                        height: "200px",
-                        maxHeight: "200px",
-                        overflowY: "scroll",
-                    }}
+                <MainCard
+                    title="Misc"
+                    collapsible={false}
+                    switchedOnTheme={true}
                 >
-                    <Container>
 
-                        <CanvasControlTitle
-                            text="Warnings"
-                        />
+                    <Card
+                        sx={{
+                            marginBottom: "10px",
+                            paddingBottom: "6px",
+                        }}
+                    >
+                        <Container>
 
-                        {
-                            warnings.length > 0
-                                ?
-                                warnings.map(warning => {
+                            <Typography>
+                                Number of picked images: {Array.from(pickedFiles.keys()).length}
+                            </Typography>
 
-                                    return (
-                                        <Alert key={warning} severity="warning"
-                                            sx={{
-                                                marginBottom: "6px",
-                                            }}
-                                        >
-                                            {warning}
-                                        </Alert>
-                                    )
-                                })
-                                : <></>
-                        }
+                        </Container>
+                    </Card>
+                </MainCard>
 
-                        {
-                            fittingDimensions
-                                ? <></>
-                                : fitCanvasSizeButton
-                        }
-                    </Container>
-                </Card>
+                <Warnings
+                    warnings={warnings}
+                    fittingDimensions={fittingDimensions}
+                    fitCanvasSizeButton={fitCanvasSizeButton}
+                    columnRowCutAttempt_notPresentOrNeeded={columnRowCutAttempt_notPresentOrNeeded}
+                    attemptFitColumnsRowsAndCutButton={attemptFitColumnsRowsAndCutButton}
+                />
             </Container>
         </StepBlock>
     );
@@ -1040,7 +1152,12 @@ function CanvasControlTitle(
 ) {
 
     return (
-        <Typography variant="h6">
+        <Typography
+            variant="h6"
+            sx={{
+                userSelect: "none",
+            }}
+        >
             {text}
         </Typography>
     );
@@ -1199,4 +1316,149 @@ function getNumber(min: number, value: string, max: number) {
 function clamp(min: number, value: number, max: number) {
 
     return Math.max(min, Math.min(value, max));
+}
+
+function MainCard(
+    {
+        title,
+        collapsible,
+        defaultCollapsed = false,
+        children,
+        switchedOnTheme = true,
+    }: {
+        title: string,
+        collapsible: boolean,
+        defaultCollapsed?: boolean,
+        switchedOnTheme?: boolean,
+    } & React.PropsWithChildren
+) {
+
+    const [collapseMainCard, setCollapseMainCard] = React.useState(defaultCollapsed);
+
+    const aTitle = (
+        <CanvasControlTitle
+            text={title}
+        />
+    );
+
+    return (
+
+        <ThemeProvider
+            theme={switchedOnTheme ? normalTheme : darkPaperTheme}
+        >
+            <Card
+                sx={{
+                    marginTop: "20px",
+                }}
+            >
+
+                <Container>
+
+                    {
+                        collapsible
+                            ?
+                                <Button
+                                    sx={{
+                                        justifyContent: "space-between",
+                                        flex: "1",
+                                        width: "100%",
+                                        textTransform: "none",
+                                    }}
+                                    onClick={() => {
+
+                                        setCollapseMainCard(previous => !previous);
+                                    }}
+                                >
+                                    {
+                                        aTitle
+                                    }
+                                    {
+                                        collapseMainCard
+                                            ? <ExpandMore/>
+                                            : <ExpandLess/>
+                                    }
+                                </Button>
+                            : aTitle
+                    }
+
+                    <Collapse
+                        in={!collapseMainCard || !collapsible}
+                    >
+
+                        {
+                            children
+                        }
+
+                    </Collapse>
+                </Container>
+
+            </Card>
+
+        </ThemeProvider>
+    );
+}
+
+function Warnings(
+    {
+        warnings,
+        fittingDimensions,
+        fitCanvasSizeButton,
+        columnRowCutAttempt_notPresentOrNeeded,
+        attemptFitColumnsRowsAndCutButton,
+    }: {
+        warnings: Array<string>,
+        fittingDimensions: boolean,
+        fitCanvasSizeButton: JSX.Element,
+        columnRowCutAttempt_notPresentOrNeeded: boolean,
+        attemptFitColumnsRowsAndCutButton: JSX.Element,
+    }
+) {
+
+    return (
+        <MainCard
+            title="Warnings"
+            collapsible={false}
+            switchedOnTheme={true}
+        >
+            <Box
+                sx={{
+                    overflowY: "scroll",
+                    width: "400px",
+                    maxWidth: "400px",
+                }}
+            >
+
+                {
+                    warnings.length > 0
+                        ?
+                        warnings.map(warning => {
+
+                            return (
+                                <Alert key={warning} severity="warning"
+                                    sx={{
+                                        marginBottom: "6px",
+                                    }}
+                                >
+                                    {warning}
+                                </Alert>
+                            )
+                        })
+                        : <></>
+                }
+
+                {
+                    fittingDimensions
+                        ? <></>
+                        : fitCanvasSizeButton
+                }
+
+                {
+                    columnRowCutAttempt_notPresentOrNeeded
+                        ? <></>
+                        : attemptFitColumnsRowsAndCutButton
+                }
+
+            </Box>
+        </MainCard>
+    );
 }

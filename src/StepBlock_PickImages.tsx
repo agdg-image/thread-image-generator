@@ -8,6 +8,8 @@ import React from "react";
 import { ImageFileMap } from "./ImageFileMap";
 import { StepBlock } from "./StepBlock";
 import { retrieveFirstFrameAsImageFromVideo } from "./VideoFirstFrameToImage";
+import RectangleIcon from '@mui/icons-material/Rectangle';
+import { keyframes } from "@mui/system";
 
 export type LoadStatus =
     {
@@ -48,10 +50,14 @@ export function StepBlock_PickImages(
         openedFiles,
         pickedFiles,
         setPickedFiles,
+        fileOrdering,
+        setFileOrdering,
     }: {
         openedFiles: ImageFileMap,
         pickedFiles: Map<string, HTMLImageElement>,
         setPickedFiles: React.Dispatch<React.SetStateAction<Map<string, HTMLImageElement>>>,
+        fileOrdering: Array<string>,
+        setFileOrdering: React.Dispatch<React.SetStateAction<Array<string>>>,
     }
 ) {
 
@@ -66,11 +72,9 @@ export function StepBlock_PickImages(
 
                 const newMap = new Map(oldMap);
 
-                const openedFilesSet = new Set(openedFiles.keys());
-
                 for (const fileName of Array.from(oldMap.keys())) {
 
-                    if (!openedFilesSet.has(fileName)) {
+                    if (!openedFiles.has(fileName)) {
 
                         newMap.delete(fileName);
                     }
@@ -89,11 +93,33 @@ export function StepBlock_PickImages(
             setImageDataURIMap(removeItemsWithMissingFileNames)
 
             setImageDataElementMap(removeItemsWithMissingFileNames)
+
+            setFileOrdering(oldArray => {
+
+                const newArray = new Array<string>();
+
+                for (let fileName of oldArray) {
+
+                    if (openedFiles.has(fileName)) {
+
+                        newArray.push(fileName);
+                    }
+                }
+
+                if (oldArray.length === newArray.length) {
+
+                    return oldArray;
+                }
+
+                return newArray;
+            });
         },
-        [openedFiles, imageDataURIMap, imageDataElementMap]
+        [openedFiles, setImageDataURIMap, setImageDataElementMap, setFileOrdering]
     );
 
     const openedFilesList = Array.from(openedFiles);
+
+
 
     React.useEffect(
         () => {
@@ -105,6 +131,21 @@ export function StepBlock_PickImages(
                 if (loadStatus === undefined) {
 
                     // file has not been loaded yet, begin loading
+
+                    setFileOrdering((oldArray) => {
+
+
+                        if (oldArray.indexOf(fileName) !== -1) {
+
+                            return oldArray;
+                        }
+
+                        const newArray = Array.from(oldArray);
+
+                        newArray.push(fileName);
+
+                        return newArray;
+                    })
 
                     setImageDataURIMap((oldMap) => {
                         return getNewMap(
@@ -232,11 +273,10 @@ export function StepBlock_PickImages(
                 }
             })
         },
-        [openedFiles, imageDataURIMap, openedFilesList]
+        [openedFilesList, setFileOrdering, setImageDataURIMap, imageDataURIMap]
     );
 
-    const openedFilesListSorted = Array.from(openedFilesList);
-    openedFilesListSorted.sort();
+    const [switchFileName, setSwitchFileName] = React.useState<string | null>(null);
 
     return (
         <StepBlock
@@ -280,17 +320,20 @@ export function StepBlock_PickImages(
             >
                 Pick all loaded images
             </Button>
+
             <div
                 style={{
-                    display: "flex",
-                    maxHeight: (imageBlockSize*5 + 40) + "px",
+                    display: "grid",
+                    maxWidth: "100%",
+                    maxHeight: (imageBlockSize * 5 + 40) + "px",
                     height: 1000,
                     overflowY: "scroll",
-                    flexWrap: "wrap",
+                    gridTemplateColumns: `repeat(auto-fill, ${imageBlockSize}px)`,
+                    gridAutoRows: "1fr",
                 }}
             >
                 {
-                    openedFilesListSorted.map(([fileName, openedFile]) => {
+                    openedFilesList.map(([fileName,]) => {
 
                         return (
                             <ImageBlock
@@ -298,6 +341,8 @@ export function StepBlock_PickImages(
                                 key={fileName}
 
                                 fileName={fileName}
+
+                                order={fileOrdering.indexOf(fileName)}
 
                                 imageDataURIMap={imageDataURIMap}
 
@@ -352,6 +397,47 @@ export function StepBlock_PickImages(
                                         return newMap;
                                     })
                                 }}
+
+                                switchFileName={switchFileName}
+
+                                onSwitchClicked={(fileName) => {
+
+
+                                    if (switchFileName === null) {
+
+                                        setSwitchFileName(fileName);
+                                    }
+                                    else if (switchFileName === fileName) {
+
+                                        setSwitchFileName(null);
+                                    }
+                                    else {
+
+                                        setFileOrdering(oldArray => {
+
+                                            if (switchFileName !== null) {
+
+                                                const index1 = oldArray.indexOf(fileName);
+                                                const index2 = oldArray.indexOf(switchFileName);
+
+                                                const newArray = Array.from(oldArray);
+
+                                                if (index1 !== index2 && index1 !== -1 && index2 !== -1) {
+
+                                                    newArray[index1] = switchFileName;
+                                                    newArray[index2] = fileName;
+
+                                                    return newArray;
+                                                }
+
+                                            }
+
+                                            return oldArray;
+                                        });
+
+                                        setSwitchFileName(null);
+                                    }
+                                }}
                             />
                         );
                     })
@@ -364,23 +450,38 @@ export function StepBlock_PickImages(
     );
 }
 
+const spin = keyframes`
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+`;
+
 function ImageBlock(
     {
         fileName,
+        order,
         imageDataURIMap,
         handleImageOnError,
         isPicked,
         setIsPicked,
         pickedFiles,
         setImageElement,
+        switchFileName,
+        onSwitchClicked,
     }: {
         fileName: string,
+        order: number,
         imageDataURIMap: Map<string, LoadStatus>,
         handleImageOnError: (fileName: string) => void,
         isPicked: boolean,
         setIsPicked: (fileName: string, isPicked: boolean) => void,
         pickedFiles: Map<string, HTMLImageElement>,
         setImageElement: (fileName: string, htmlImageElement: HTMLImageElement) => void,
+        switchFileName: string | null,
+        onSwitchClicked: (fileName: string) => void,
     }
 ) {
 
@@ -392,64 +493,96 @@ function ImageBlock(
 
     const imageToShow = loadStatus === undefined
         ?
-            <CircularProgress />
+        <CircularProgress />
         :
-            (() => {
-                switch (loadStatus.aType) {
+        (() => {
+            switch (loadStatus.aType) {
 
-                    case "loading": {
-                        return <CircularProgress />;
-                    }
-                    case "loadcomplete": {
-
-
-                        return loadStatus.image === null
-                            ? loadingFailedText
-                            : (
-                                <img
-                                    src={loadStatus.image}
-                                    style={{
-                                        maxWidth: imageBlockSize + "px",
-                                        maxHeight: imageBlockSize + "px",
-                                        objectFit: "contain",
-                                        alignSelf: "center",
-                                    }}
-                                    ref={imageRef}
-                                    onLoad={() => {
-
-                                        if (imageRef.current !== null) {
-
-                                            const img = imageRef.current;
-
-                                            if (img.naturalWidth === 0 || img.naturalHeight === 0) {
-
-                                                handleImageOnError(fileName);
-                                            }
-                                            else {
-
-                                                setImageElement(fileName, img);
-
-                                                setImageSize([
-                                                    img.naturalWidth,
-                                                    img.naturalHeight
-                                                ]);
-                                            }
-                                        }
-                                    }}
-                                    onError={() => {
-
-                                        handleImageOnError(fileName)
-                                    }}
-                                >
-                                </img>
-                            );
-                    }
-                    case "loadfailed": {
-
-                        return loadingFailedText;
-                    }
+                case "loading": {
+                    return <CircularProgress />;
                 }
-            })();
+                case "loadcomplete": {
+
+
+                    return loadStatus.image === null
+                        ? loadingFailedText
+                        : (
+                            <img
+                                src={loadStatus.image}
+                                style={{
+                                    maxWidth: "100%",
+                                    maxHeight: (imageBlockSize - 6) + "px",
+                                    objectFit: "contain",
+                                    alignSelf: "center",
+                                    boxSizing: "border-box",
+                                }}
+                                ref={imageRef}
+                                onLoad={() => {
+
+                                    if (imageRef.current !== null) {
+
+                                        const img = imageRef.current;
+
+                                        if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+
+                                            handleImageOnError(fileName);
+                                        }
+                                        else {
+
+                                            setImageElement(fileName, img);
+
+                                            setImageSize([
+                                                img.naturalWidth,
+                                                img.naturalHeight
+                                            ]);
+                                        }
+                                    }
+                                }}
+                                onError={() => {
+
+                                    handleImageOnError(fileName)
+                                }}
+                            >
+                            </img>
+                        );
+                }
+                case "loadfailed": {
+
+                    return loadingFailedText;
+                }
+            }
+        })();
+
+    const switchPart = (() => {
+
+        const isThisBeingSwitched = fileName === switchFileName;
+
+        return (
+            <Button
+                variant="contained"
+                onClick={(e) => {
+
+                    onSwitchClicked(fileName);
+                }}
+            >
+                Switch
+
+                {
+                    isThisBeingSwitched
+                        ?
+                        <RectangleIcon
+                            sx={{
+                                marginLeft: "10px",
+                                animation: `${spin} 3s linear infinite`
+                            }}
+                        />
+                        :
+                        <></>
+                }
+            </Button>
+        );
+
+    })();
 
     return (
         <div
@@ -459,29 +592,40 @@ function ImageBlock(
                 backgroundColor: pickedFiles.has(fileName) ? "#a4a4ff" : "",
                 maxWidth: imageBlockSize + "px",
                 width: imageBlockSize + "px",
+                height: imageBlockSize * 1.8,
+                maxHeight: imageBlockSize * 1.8,
+                order: "" + order,
+
+                display: "flex",
+                flexDirection: "column",
             }}
         >
             {imageToShow}
             <div
                 style={{
-                    padding: "4px",
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    padding: "10px",
                 }}
             >
-                <Typography
-                    title={fileName}
-                    sx={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "10px",
-                    }}
-                >
-                    Filename: {fileName}
-                </Typography>
-                {
-                    imageSize === null
-                        ?
+                <div>
+                    <Typography
+                        title={fileName}
+                        sx={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            fontSize: "10px",
+                        }}
+                    >
+                        Filename: {fileName}
+                    </Typography>
+                    {
+                        imageSize === null
+                            ?
                             <></>
-                        :
+                            :
                             <Typography
                                 sx={{
                                     overflow: "hidden",
@@ -491,20 +635,26 @@ function ImageBlock(
                             >
                                 Size: {imageSize[0] + "x" + imageSize[1]}
                             </Typography>
-                }
-                <FormControlLabel
-                    label="Picked"
-                    control={
-                        <Switch
-                            checked={isPicked}
-                            disabled={loadStatus === undefined || loadStatus.aType !== "loadcomplete"}
-                            onChange={(changeEvent) => {
-
-                                setIsPicked(fileName, changeEvent.target.checked);
-                            }}
-                        />
                     }
-                />
+                </div>
+                <div>
+                    <FormControlLabel
+                        label="Picked"
+                        control={
+                            <Switch
+                                checked={isPicked}
+                                disabled={loadStatus === undefined || loadStatus.aType !== "loadcomplete"}
+                                onChange={(changeEvent) => {
+
+                                    setIsPicked(fileName, changeEvent.target.checked);
+                                }}
+                            />
+                        }
+                    />
+                    {
+                        switchPart
+                    }
+                </div>
             </div>
 
         </div>

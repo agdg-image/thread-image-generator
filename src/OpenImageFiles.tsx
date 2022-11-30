@@ -54,10 +54,6 @@ export function OpenImageFiles(
                     You can open multiple files at a time.
                 </Typography>
 
-                <Typography>
-                    (A "thumbnail" image is defined as an image with a file name that fits the pattern "[number]s.jpg").
-                </Typography>
-
                 <Box
                     sx={{
                         display: "flex",
@@ -66,10 +62,16 @@ export function OpenImageFiles(
                     }}
                 >
 
-                    <Card>
+                    <Card
+
+                        sx={{
+                            minWidth: "fit-content",
+                        }}
+                    >
                         <Container
                             sx={{
                                 padding: "6px",
+                                minWidth: "fit-content",
                             }}
                         >
                             <Typography variant="h6">
@@ -101,13 +103,18 @@ export function OpenImageFiles(
                         </Container>
                     </Card>
 
-                    <Card>
+                    <Card
+                        sx={{
+                            minWidth: "fit-content",
+                        }}
+                    >
                         <Container
                             sx={{
                                 display: "flex",
                                 flexDirection: "column",
                                 gap: "10px",
                                 padding: "6px",
+                                minWidth: "fit-content",
                             }}
                         >
                             <Typography variant="h6">
@@ -152,8 +159,8 @@ export function OpenImageFiles(
 
                                         const canvas = document.createElement("canvas") as HTMLCanvasElement;
 
-                                        canvas.width = img.naturalWidth*4;
-                                        canvas.height = img.naturalHeight*4;
+                                        canvas.width = img.naturalWidth * 4;
+                                        canvas.height = img.naturalHeight * 4;
 
                                         const ctx = canvas.getContext("2d");
 
@@ -202,6 +209,10 @@ export function OpenImageFiles(
                         >
                             <Typography variant="h6">
                                 Misc
+                            </Typography>
+
+                            <Typography>
+                                (A "thumbnail" image is defined as an image with a file name that fits the pattern "[number]s.jpg").
                             </Typography>
 
                             <Button
