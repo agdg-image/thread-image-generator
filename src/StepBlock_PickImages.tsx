@@ -10,6 +10,11 @@ import { StepBlock } from "./StepBlock";
 import { retrieveFirstFrameAsImageFromVideo } from "./VideoFirstFrameToImage";
 import RectangleIcon from '@mui/icons-material/Rectangle';
 import { keyframes } from "@mui/system";
+import { ThreadContext } from "./ThreadContext";
+import Dialog from "@mui/material/Dialog";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import Container from "@mui/material/Container";
 
 export type LoadStatus =
     {
@@ -52,12 +57,14 @@ export function StepBlock_PickImages(
         setPickedFiles,
         fileOrdering,
         setFileOrdering,
+        threadContext,
     }: {
         openedFiles: ImageFileMap,
         pickedFiles: Map<string, HTMLImageElement>,
         setPickedFiles: React.Dispatch<React.SetStateAction<Map<string, HTMLImageElement>>>,
         fileOrdering: Array<string>,
         setFileOrdering: React.Dispatch<React.SetStateAction<Array<string>>>,
+        threadContext: ThreadContext,
     }
 ) {
 
@@ -280,8 +287,7 @@ export function StepBlock_PickImages(
 
     return (
         <StepBlock
-            colorSwitch={false}
-            stepNumber={3}
+            stepNumber={4}
             stepTitle="Pick images"
         >
             <Typography>
@@ -435,6 +441,8 @@ export function StepBlock_PickImages(
                                         setSwitchFileName(null);
                                     }
                                 }}
+
+                                threadContext={threadContext}
                             />
                         );
                     })
@@ -468,6 +476,7 @@ function ImageBlock(
         setImageElement,
         switchFileName,
         onSwitchClicked,
+        threadContext,
     }: {
         fileName: string,
         order: number,
@@ -479,6 +488,7 @@ function ImageBlock(
         setImageElement: (fileName: string, htmlImageElement: HTMLImageElement) => void,
         switchFileName: string | null,
         onSwitchClicked: (fileName: string) => void,
+        threadContext: ThreadContext,
     }
 ) {
 
@@ -487,6 +497,8 @@ function ImageBlock(
     const imageRef = React.useRef<HTMLImageElement | null>(null);
 
     const [imageSize, setImageSize] = React.useState<[number, number] | null>(null);
+
+    const [showContextDialog, setShowContextDialog] = React.useState(false);
 
     const imageToShow = loadStatus === undefined
         ?
@@ -539,6 +551,11 @@ function ImageBlock(
 
                                     handleImageOnError(fileName)
                                 }}
+
+                                onClick={() => {
+
+                                    setShowContextDialog(true);
+                                }}
                             >
                             </img>
                         );
@@ -580,6 +597,88 @@ function ImageBlock(
         );
 
     })();
+
+    const threadContextContentAndOriginalFileName = threadContext.get(fileName);
+
+    const threadContextElement = (() => {
+
+        if (threadContextContentAndOriginalFileName !== undefined) {
+
+            const [content, originalFileName] = threadContextContentAndOriginalFileName;
+
+            const splitContent = content.split("<br>");
+
+            return (
+
+                <Container>
+
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            marginTop: "10px",
+                        }}
+                    >
+                        Source content of post (where &lt;br&gt; has been replaced with newlines)
+                    </Typography>
+
+                    <Card>
+
+                        <Container>
+
+                            <Typography
+                            >
+                                {
+                                    splitContent.map((spl, index) => {
+
+                                        return (
+                                            <React.Fragment
+                                                key={index + ": " + spl}
+                                            >
+                                                {
+                                                    spl
+                                                }
+                                                <br/>
+                                            </React.Fragment>
+                                        );
+                                    })
+                                }
+                            </Typography>
+                        </Container>
+
+                    </Card>
+
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            marginTop: "10px",
+                        }}
+                    >
+                        Original file name
+                    </Typography>
+
+                    <Card>
+
+                        <Container>
+
+                            <Typography>
+                                {originalFileName}
+                            </Typography>
+                        </Container>
+
+                    </Card>
+
+                </Container>
+            );
+        }
+        else {
+
+            return (
+                <></>
+            );
+        }
+
+    })();
+
 
     return (
         <div
@@ -653,6 +752,53 @@ function ImageBlock(
                     }
                 </div>
             </div>
+
+            <Dialog
+                open={showContextDialog}
+                fullWidth={true}
+                maxWidth={false}
+                onClose={() => {
+
+                    setShowContextDialog(false);
+                }}
+            >
+
+                <Box
+                    sx={{
+                        display: "flex",
+                    }}
+                >
+
+                    {
+                        loadStatus?.aType === "loadcomplete"
+                            ?
+                                <img
+                                    style={{
+                                        flex: "1",
+                                        maxWidth: "90vw",
+                                        maxHeight: "90vh",
+                                        objectFit: "contain",
+                                    }}
+                                    src={loadStatus.image}
+                                >
+                                </img>
+                            :
+                                <></>
+                    }
+
+                    <Box
+                        sx={{
+                            flex: "1",
+                        }}
+                    >
+                        {
+                            threadContextElement
+                        }
+                    </Box>
+
+                </Box>
+
+            </Dialog>
 
         </div>
     );

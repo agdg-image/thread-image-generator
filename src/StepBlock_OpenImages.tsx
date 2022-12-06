@@ -7,13 +7,13 @@ export function StepBlock_OpenImages(
 
     return (
         <StepBlock
-            colorSwitch={true}
             stepNumber={2}
-            stepTitle="Open images"
+            stepTitle="Open images and videos"
         >
 
             <OpenImageFiles
                 addFilesCallback={props.addFilesCallback}
+                thumbnailCount={props.thumbnailCount}
                 removeThumbnailFiles={props.removeThumbnailFiles}
             />
         </StepBlock>

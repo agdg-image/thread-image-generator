@@ -13,12 +13,19 @@ import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import { StepBlock_AddThreadContext } from './StepBlock_AddThreadContext';
+import { ThreadContext } from './ThreadContext';
 
 
 
 const theme = createTheme();
 
 const thumbnailPatternRegex = /^(\d)+s\.jpg$/;
+
+function isThumbnail(fileName: string) {
+
+  return thumbnailPatternRegex.test(fileName);
+}
 
 function App() {
 
@@ -29,6 +36,30 @@ function App() {
   const [generatedImageDataURL, setGeneratedImageDataURL] = React.useState<string | null>(null);
 
   const [fileOrdering, setFileOrdering] = React.useState<Array<string>>([]);
+
+  const [thumbnailCount, setThumbnailCount] = React.useState(0);
+
+  const [threadContext, setThreadContext] = React.useState<ThreadContext>(new Map());
+
+  React.useEffect(
+    () => {
+
+      let thumbnailC = 0;
+
+      const fileNameList = Array.from(imageFiles.keys());
+
+      for (const fileName of fileNameList) {
+
+        if (isThumbnail(fileName)) {
+
+          thumbnailC++;
+        }
+      }
+
+      setThumbnailCount(thumbnailC);
+    },
+    [imageFiles]
+  )
 
   React.useEffect(
     () => {
@@ -184,6 +215,7 @@ function App() {
               return newMap;
             })
           }}
+          thumbnailCount={thumbnailCount}
           removeThumbnailFiles={() => {
 
             setImageFiles(previousImageFiles => {
@@ -194,7 +226,8 @@ function App() {
 
               for (const fileName of fileNameList) {
 
-                if (thumbnailPatternRegex.test(fileName)) {
+                if (isThumbnail(fileName)) {
+
 
                   newMap.delete(fileName);
                 }
@@ -207,12 +240,17 @@ function App() {
           }}
         />
 
+        <StepBlock_AddThreadContext
+          setThreadContext={setThreadContext}
+        />
+
         <StepBlock_PickImages
           openedFiles={imageFiles}
           pickedFiles={pickedFiles}
           setPickedFiles={setPickedFiles}
           fileOrdering={fileOrdering}
           setFileOrdering={setFileOrdering}
+          threadContext={threadContext}
         />
 
         <StepBlock_AdjustGeneratedImage

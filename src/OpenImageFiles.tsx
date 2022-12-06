@@ -12,9 +12,11 @@ import { getLogoWithColor } from "./Logo";
 export function OpenImageFiles(
     {
         addFilesCallback,
+        thumbnailCount,
         removeThumbnailFiles,
     }: {
         addFilesCallback: (fileList: FileList | Array<File>) => void,
+        thumbnailCount: number,
         removeThumbnailFiles: () => void,
     }
 ) {
@@ -50,7 +52,7 @@ export function OpenImageFiles(
                 }}
             >
                 <Typography>
-                    Open the images for inclusion from your file system (file names must be unique).
+                    Open the images and videos for inclusion from your file system (file names must be unique).
                     You can open multiple files at a time.
                 </Typography>
 
@@ -75,7 +77,7 @@ export function OpenImageFiles(
                             }}
                         >
                             <Typography variant="h6">
-                                Open image files
+                                Open
                             </Typography>
 
                             <Button
@@ -83,7 +85,7 @@ export function OpenImageFiles(
                                 component="label"
                             >
 
-                                Open image files
+                                Open image and video files
                                 <input
                                     type="file"
                                     hidden
@@ -103,126 +105,159 @@ export function OpenImageFiles(
                         </Container>
                     </Card>
 
-                    <Card
-                        sx={{
-                            minWidth: "fit-content",
-                        }}
-                    >
-                        <Container
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "10px",
-                                padding: "6px",
-                                minWidth: "fit-content",
-                            }}
-                        >
-                            <Typography variant="h6">
-                                Logo as opened file
-                            </Typography>
-
-                            <img
-                                src={getLogoWithColor(logoColor)}
-                                ref={imgRef}
-                            >
-                            </img>
-
-                            <Typography>
-                                Color: {logoColor}
-                            </Typography>
-
-                            <input
-                                type="color"
-                                value={logoColor}
-                                onChange={(event) => {
-
-                                    setLogoColor(event.target.value);
-                                }}
-                            />
-
-                            <TextField
-                                variant="standard"
-                                defaultValue={logoFileName}
-                                onChange={(event) => {
-
-                                    setLogoFileName(event.target.value);
-                                }}
-                            />
-
-                            <Button
-                                variant="contained"
-                                onClick={() => {
-
-                                    if (imgRef.current !== null) {
-
-                                        const img = imgRef.current;
-
-                                        const canvas = document.createElement("canvas") as HTMLCanvasElement;
-
-                                        canvas.width = img.naturalWidth * 4;
-                                        canvas.height = img.naturalHeight * 4;
-
-                                        const ctx = canvas.getContext("2d");
-
-                                        if (ctx !== null) {
-
-                                            ctx.scale(4, 4);
-
-                                            ctx.drawImage(img, 0, 0);
-                                        }
-
-                                        canvas.toBlob(
-                                            (blob) => {
-
-                                                if (blob !== null) {
-
-                                                    addFilesCallback([
-                                                        new File(
-                                                            [blob],
-                                                            logoFileName,
-                                                            {
-                                                                type: "image/png"
-                                                            }
-                                                        )
-                                                    ]);
-                                                }
-                                            },
-                                        );
-                                    }
-                                }}
-                            >
-                                Include logo as file
-                            </Button>
-                        </Container>
-                    </Card>
-
-
-
                     <Card>
+
                         <Container
                             sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "10px",
                                 padding: "6px",
                             }}
                         >
-                            <Typography variant="h6">
-                                Misc
-                            </Typography>
 
-                            <Typography>
-                                (A "thumbnail" image is defined as an image with a file name that fits the pattern "[number]s.jpg").
-                            </Typography>
-
-                            <Button
-                                variant="contained"
-                                onClick={removeThumbnailFiles}
+                            <Typography variant="h6"
                             >
-                                Remove all thumbnails
-                            </Button>
+
+                                Optional
+
+                            </Typography>
+
+                            <Card
+                                sx={{
+                                    minWidth: "fit-content",
+                                }}
+                            >
+                                <Container
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "10px",
+                                        padding: "6px",
+                                        minWidth: "fit-content",
+                                    }}
+                                >
+                                    <Typography variant="h6">
+                                        Logo as opened file
+                                    </Typography>
+
+                                    <img
+                                        src={getLogoWithColor(logoColor)}
+                                        ref={imgRef}
+
+                                        style={{
+                                            maxWidth: "256px",
+                                            maxHeight: "256px",
+                                            objectFit: "contain"
+                                        }}
+                                    >
+                                    </img>
+
+                                    <Typography>
+                                        Color: {logoColor}
+                                    </Typography>
+
+                                    <input
+                                        type="color"
+                                        value={logoColor}
+                                        onChange={(event) => {
+
+                                            setLogoColor(event.target.value);
+                                        }}
+                                    />
+
+                                    <TextField
+                                        variant="standard"
+                                        defaultValue={logoFileName}
+                                        onChange={(event) => {
+
+                                            setLogoFileName(event.target.value);
+                                        }}
+                                    />
+
+                                    <Button
+                                        variant="contained"
+                                        onClick={() => {
+
+                                            if (imgRef.current !== null) {
+
+                                                const img = imgRef.current;
+
+                                                const canvas = document.createElement("canvas") as HTMLCanvasElement;
+
+                                                canvas.width = img.naturalWidth * 4;
+                                                canvas.height = img.naturalHeight * 4;
+
+                                                const ctx = canvas.getContext("2d");
+
+                                                if (ctx !== null) {
+
+                                                    ctx.scale(4, 4);
+
+                                                    ctx.drawImage(img, 0, 0);
+                                                }
+
+                                                canvas.toBlob(
+                                                    (blob) => {
+
+                                                        if (blob !== null) {
+
+                                                            addFilesCallback([
+                                                                new File(
+                                                                    [blob],
+                                                                    logoFileName,
+                                                                    {
+                                                                        type: "image/png"
+                                                                    }
+                                                                )
+                                                            ]);
+                                                        }
+                                                    },
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        Include logo as file
+                                    </Button>
+                                </Container>
+                            </Card>
+
+
+
+                            <Card
+                                sx={{
+                                    marginTop: "10px",
+                                }}
+                            >
+                                <Container
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "10px",
+                                        padding: "6px",
+                                    }}
+                                >
+                                    <Typography variant="h6">
+                                        Misc
+                                    </Typography>
+
+                                    <Typography>
+                                        A "thumbnail" image is defined as an image with a file name that fits the pattern "[number]s.jpg".
+                                        Thumbnail images are generally low-resolution versions of the actual image or the first frame of a video.
+                                    </Typography>
+
+                                    <Button
+                                        variant="contained"
+                                        disabled={thumbnailCount === 0}
+                                        onClick={removeThumbnailFiles}
+                                    >
+                                        Remove all thumbnails ({thumbnailCount})
+                                    </Button>
+
+                                </Container>
+                            </Card>
+
+
 
                         </Container>
+
                     </Card>
 
                 </Box>

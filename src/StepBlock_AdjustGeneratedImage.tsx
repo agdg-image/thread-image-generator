@@ -440,7 +440,7 @@ export function StepBlock_AdjustGeneratedImage(
         {
             checkFailedShouldWarn: !fittingDimensions,
             warningString: "Canvas dimensions does not fit with column & row count and image block item size."
-        }
+        },
     ] as const;
 
     const warnings = checks.flatMap(check => {
@@ -635,8 +635,7 @@ export function StepBlock_AdjustGeneratedImage(
 
     return (
         <StepBlock
-            colorSwitch={true}
-            stepNumber={4}
+            stepNumber={5}
             stepTitle="Adjust generation"
         >
             <Typography>

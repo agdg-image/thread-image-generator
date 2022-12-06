@@ -4,17 +4,18 @@ import Typography from "@mui/material/Typography";
 export function StepBlock(
     props:
         React.PropsWithChildren & {
-            colorSwitch: boolean,
             stepNumber: number,
             stepTitle: string,
         }
 ) {
 
+    const colorSwitch = props.stepNumber % 2 === 0;
+
     return (
         <Container
             sx={{
                 backgroundColor: (theme) =>
-                    props.colorSwitch ? theme.palette.grey[100] : theme.palette.grey[300],
+                    colorSwitch ? theme.palette.grey[100] : theme.palette.grey[300],
                 paddingTop: "6px",
                 paddingBottom: "10px"
             }}

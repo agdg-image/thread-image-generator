@@ -50,7 +50,7 @@ export function DragAndDrop(
             >
 
                 <Typography>
-                    Drag and drop image files here.
+                    Drag and drop image and video files here.
                 </Typography>
 
             </Box>
