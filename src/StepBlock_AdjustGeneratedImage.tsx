@@ -173,11 +173,11 @@ export function StepBlock_AdjustGeneratedImage(
     {
         pickedFiles,
         fileOrdering,
-        setGeneratedImageDataURL,
+        onImageDrawn,
     }: {
         pickedFiles: Map<string, HTMLImageElement>;
         fileOrdering: Array<string>,
-        setGeneratedImageDataURL: React.Dispatch<React.SetStateAction<string | null>>,
+        onImageDrawn: (canvas: HTMLCanvasElement) => void,
     }
 ) {
 
@@ -406,17 +406,14 @@ export function StepBlock_AdjustGeneratedImage(
                         ctx.setTransform(1, 0, 0, 1, 0, 0);
                     }
 
-
-                    const image = canvas.toDataURL("image/png");
-
-                    setGeneratedImageDataURL(image);
+                    onImageDrawn(canvas);
                 }
 
             }
         },
         [
             pickedImageBitmaps, canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight, columnCount, rowCount, cutOrStretched,
-            logoRef, showLogo, logoOpacity, logoColor, belatedLogoSrc, logoSize, canvasRef, setGeneratedImageDataURL, canvasBackgroundColor, showCanvasBackground,
+            logoRef, showLogo, logoOpacity, logoColor, belatedLogoSrc, logoSize, canvasRef, onImageDrawn, canvasBackgroundColor, showCanvasBackground,
             canvasGridCutColumnStart, canvasGridCutColumnEnd, canvasGridCutRowStart, canvasGridCutRowEnd, doCanvasGridCut,
             doCanvasGap, canvasGapSize, fileOrdering,
         ]

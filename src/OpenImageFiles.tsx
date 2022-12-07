@@ -1,4 +1,5 @@
 
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -79,6 +80,18 @@ export function OpenImageFiles(
                             <Typography variant="h6">
                                 Open
                             </Typography>
+
+                            <Alert
+                                severity="info"
+                                sx={{
+                                    marginBottom: "10px",
+                                    width: "400px",
+                                }}
+                            >
+
+                                Please be aware that opening many large files at once might take several seconds for the browser to handle.
+
+                            </Alert>
 
                             <Button
                                 variant="contained"

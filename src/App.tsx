@@ -33,13 +33,13 @@ function App() {
 
   const [pickedFiles, setPickedFiles] = React.useState(new Map<string, HTMLImageElement>());
 
-  const [generatedImageDataURL, setGeneratedImageDataURL] = React.useState<string | null>(null);
-
   const [fileOrdering, setFileOrdering] = React.useState<Array<string>>([]);
 
   const [thumbnailCount, setThumbnailCount] = React.useState(0);
 
   const [threadContext, setThreadContext] = React.useState<ThreadContext>(new Map());
+
+  const [canvasElement, setCanvasElement] = React.useState<HTMLCanvasElement | null>(null);
 
   React.useEffect(
     () => {
@@ -256,11 +256,14 @@ function App() {
         <StepBlock_AdjustGeneratedImage
           pickedFiles={pickedFiles}
           fileOrdering={fileOrdering}
-          setGeneratedImageDataURL={setGeneratedImageDataURL}
+          onImageDrawn={(canvasElement) => {
+
+            setCanvasElement(canvasElement);
+          }}
         />
 
         <StepBlock_GenerateImage
-          generatedImageDataURL={generatedImageDataURL}
+          canvasElement={canvasElement}
         />
 
       </Container>

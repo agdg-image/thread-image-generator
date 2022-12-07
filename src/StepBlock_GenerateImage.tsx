@@ -10,15 +10,21 @@ import { StepBlock } from "./StepBlock";
 
 export function StepBlock_GenerateImage(
     {
-        generatedImageDataURL,
+        canvasElement,
     }: {
-        generatedImageDataURL: string | null,
+        canvasElement: HTMLCanvasElement | null,
     }
 ) {
 
     const aRef = React.useRef<HTMLAnchorElement>(null);
 
     const [outputFileName, setOutputFileName] = React.useState("collage.png");
+
+    const [generatedImageDataURL, setGeneratedImageDataURL] = React.useState<string | null>(null);
+
+    const [timestamp, setTimestamp] = React.useState<Date | null>(null);
+
+    const [fileSizeInBytes, setFileSizeInBytes] = React.useState<number | null>(null);
 
     React.useEffect(
         () => {
@@ -36,16 +42,6 @@ export function StepBlock_GenerateImage(
         [aRef, generatedImageDataURL]
     );
 
-    const [fileSizeInBytes, setFileSizeInBytes] = React.useState<number | null>(null);
-
-    React.useEffect(
-        () => {
-
-            setFileSizeInBytes(null);
-        },
-        [generatedImageDataURL]
-    )
-
     return (
         <StepBlock
             stepNumber={6}
@@ -59,9 +55,59 @@ export function StepBlock_GenerateImage(
                         padding: "6px",
                     }}
                 >
+
+                    <Container>
+
+                        <Typography variant="h6">
+
+                            Generate image
+
+                        </Typography>
+
+                        <Button
+                            variant="contained"
+                            onClick={() => {
+
+                                if (canvasElement !== null) {
+
+                                    const aGeneratedImageDataURL = canvasElement.toDataURL("image/png");
+
+                                    setGeneratedImageDataURL(aGeneratedImageDataURL);
+
+                                    setFileSizeInBytes(window.atob(aGeneratedImageDataURL.split(",")[1]).length);
+
+                                    setTimestamp(new Date());
+                                }
+                            }}
+                        >
+
+                            Generate image
+
+                        </Button>
+
+                        <Typography>
+
+                            {
+                                generatedImageDataURL === null || timestamp === null
+                                    ? "The most recent drawn image has not been generated."
+                                    : "Image was generated at: " + timestamp.toLocaleTimeString()
+                            }
+
+                        </Typography>
+
+                    </Container>
+
+                </Card>
+
+                <Card
+                    sx={{
+                        padding: "6px",
+                        marginTop: "10px",
+                    }}
+                >
                     <Container
                         sx={{
-                            minHeight: "140px",
+                            minHeight: "110px",
                         }}
                     >
 
@@ -70,23 +116,6 @@ export function StepBlock_GenerateImage(
                             Check final collage image file size
 
                         </Typography>
-
-                        <Button
-                            variant="contained"
-                            sx={{
-                                marginBottom: "10px",
-                            }}
-                            onClick={() => {
-
-                                if (generatedImageDataURL !== null) {
-
-
-                                    setFileSizeInBytes(window.atob(generatedImageDataURL.split(",")[1]).length);
-                                }
-                            }}
-                        >
-                            Calculate and check file size
-                        </Button>
 
                         {
                             fileSizeInBytes === null
@@ -136,15 +165,21 @@ export function StepBlock_GenerateImage(
                             }}
                         />
 
-                        <a
-                            ref={aRef}
-                            download={outputFileName}
-                            style={{
-                                marginLeft: "10px",
-                            }}
-                        >
-                            Save generated image.
-                        </a>
+                        {
+                            generatedImageDataURL === null
+                                ?
+                                    <></>
+                                :
+                                    <a
+                                        ref={aRef}
+                                        download={outputFileName}
+                                        style={{
+                                            marginLeft: "10px",
+                                        }}
+                                    >
+                                        Save generated image.
+                                    </a>
+                        }
 
                     </Container>
                 </Card>

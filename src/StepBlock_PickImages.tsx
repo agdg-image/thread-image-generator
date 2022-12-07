@@ -18,12 +18,21 @@ import Container from "@mui/material/Container";
 
 export type LoadStatus =
     {
-        aType: "loading"
+        aType: "loadingimage"
+    }
+    |
+    {
+        aType: "loadingwebm"
     }
     |
     {
         aType: "loadcomplete",
         image: string,
+    }
+    |
+    {
+        aType: "loadwebmcomplete",
+        webm: string,
     }
     |
     {
@@ -36,19 +45,130 @@ const loadingFailedText = (
     </Typography>
 );
 
-function getNewMap(fileName: string, loadStatus: LoadStatus, oldMap: Map<string, LoadStatus>) {
-
-    const newMap = new Map(oldMap);
-
-    newMap.set(
-        fileName,
-        loadStatus
-    );
-
-    return newMap;
-}
-
 export const imageBlockSize = 190;
+
+function imageDataURIMapReducer(
+    previousMap: Map<string, LoadStatus>,
+    action:
+        {
+            aType: "removeItemsWithMissingFileNames",
+            openedFiles: ImageFileMap,
+        } |
+        {
+            aType: "loadingHasBegun",
+            fileName: string,
+            loadingKind: "loadingimage" | "loadingwebm"
+        } |
+        {
+            aType: "loadingFailed",
+            fileName: string,
+        } |
+        {
+            aType: "didLoad",
+            fileName: string,
+            fileReaderResult: string,
+        } |
+        {
+            aType: "didLoadImageFromWebm",
+            fileName: string,
+            image: string,
+        }
+) {
+
+
+    switch (action.aType) {
+
+        case "removeItemsWithMissingFileNames": {
+
+            const newMap = new Map(previousMap);
+
+            for (const fileName of Array.from(previousMap.keys())) {
+
+                if (!action.openedFiles.has(fileName)) {
+
+                    newMap.delete(fileName);
+                }
+            }
+
+            if (newMap.size === previousMap.size) {
+
+                return previousMap;
+            }
+            else {
+
+                return newMap;
+            }
+        }
+        case "loadingHasBegun": {
+
+            if (previousMap.has(action.fileName)) {
+
+                return previousMap;
+            }
+
+            const aType = action.loadingKind;
+
+            const newMap = new Map(previousMap);
+
+            newMap.set(action.fileName, {aType});
+
+            return newMap;
+
+        }
+        case "loadingFailed": {
+
+            const newMap = new Map(previousMap);
+
+            newMap.set(action.fileName, {aType: "loadfailed"});
+
+            return newMap;
+
+        }
+        case "didLoad": {
+
+            const previous = previousMap.get(action.fileName);
+
+            if (previous !== undefined) {
+
+                if (previous.aType !== "loadfailed") {
+
+                    const newResult =
+                        previous.aType === "loadingwebm"
+                            ?
+                                {aType: "loadwebmcomplete", webm: action.fileReaderResult} as const
+                            :
+                                {aType: "loadcomplete", image: action.fileReaderResult} as const;
+
+                    const newMap = new Map(previousMap);
+
+                    newMap.set(action.fileName, newResult);
+
+                    return newMap;
+
+                }
+                else {
+
+                    return previousMap;
+                }
+            }
+            else {
+
+                // should not happen
+
+                return previousMap;
+            }
+        }
+        case "didLoadImageFromWebm": {
+
+            const newMap = new Map(previousMap);
+
+            newMap.set(action.fileName, {aType: "loadcomplete", image: action.image});
+
+            return newMap;
+
+        }
+    }
+}
 
 export function StepBlock_PickImages(
     {
@@ -68,7 +188,7 @@ export function StepBlock_PickImages(
     }
 ) {
 
-    const [imageDataURIMap, setImageDataURIMap] = React.useState(new Map<string, LoadStatus>());
+    const [imageDataURIMap, imageDataURIMapDispatch] = React.useReducer(imageDataURIMapReducer, new Map<string, LoadStatus>());
 
     const [imageDataElementMap, setImageDataElementMap] = React.useState<Map<string, HTMLImageElement>>(new Map());
 
@@ -97,7 +217,10 @@ export function StepBlock_PickImages(
                 }
             };
 
-            setImageDataURIMap(removeItemsWithMissingFileNames)
+            imageDataURIMapDispatch({
+                aType: "removeItemsWithMissingFileNames",
+                openedFiles: openedFiles,
+            });
 
             setImageDataElementMap(removeItemsWithMissingFileNames)
 
@@ -121,12 +244,68 @@ export function StepBlock_PickImages(
                 return newArray;
             });
         },
-        [openedFiles, setImageDataURIMap, setImageDataElementMap, setFileOrdering]
+        [openedFiles, imageDataURIMapDispatch, setImageDataElementMap, setFileOrdering]
+    );
+
+    React.useEffect(
+        () => {
+
+            imageDataURIMap.forEach((oldStatus, fileName) => {
+
+                switch (oldStatus.aType) {
+
+                    case "loadfailed":
+                    case "loadcomplete":
+                    case "loadingimage":
+                    case "loadingwebm": {
+
+                        break;
+                    }
+                    case "loadwebmcomplete": {
+
+                        const webm = oldStatus.webm;
+
+                        imageDataURIMapDispatch(
+                            {
+                                aType: "loadingHasBegun",
+                                fileName,
+                                loadingKind: "loadingimage",
+                            }
+                        );
+
+                        retrieveFirstFrameAsImageFromVideo(fileName, webm)
+                            .then(
+                                (imageResult) => {
+
+                                    imageDataURIMapDispatch(
+                                        {
+                                            aType: "didLoadImageFromWebm",
+                                            fileName,
+                                            image: imageResult as string,
+                                        }
+                                    );
+                                },
+                                () => {
+
+                                    imageDataURIMapDispatch(
+                                        {
+                                            aType: "loadingFailed",
+                                            fileName,
+                                        }
+                                    );
+                                }
+                            );
+
+                        break;
+                    }
+
+                }
+            });
+        },
+        [imageDataURIMapDispatch, imageDataURIMap]
     );
 
     const openedFilesList = Array.from(openedFiles);
-
-
 
     React.useEffect(
         () => {
@@ -154,15 +333,15 @@ export function StepBlock_PickImages(
                         return newArray;
                     })
 
-                    setImageDataURIMap((oldMap) => {
-                        return getNewMap(
+                    imageDataURIMapDispatch(
+                        {
+                            aType: "loadingHasBegun",
                             fileName,
-                            {
-                                aType: "loading",
-                            },
-                            oldMap
-                        );
-                    });
+                            loadingKind: fileName.endsWith(".webm")
+                                ? "loadingwebm"
+                                : "loadingimage"
+                        }
+                    );
 
                     const fileReader = new FileReader();
 
@@ -184,84 +363,24 @@ export function StepBlock_PickImages(
 
                         if (event.type === "load") {
 
-                            setImageDataURIMap((oldMap) => {
-
-                                // be aware, casting the type
-
-                                const oldStatus = oldMap.get(fileName);
-
-                                const didFail = oldStatus !== undefined && oldStatus.aType === "loadfailed"
-
-                                if (!didFail) {
-
-                                    if (fileName.endsWith(".webm")) {
-
-
-                                        retrieveFirstFrameAsImageFromVideo(fileName, fileReader.result as string)
-                                            .then(
-                                                (imageResult) => {
-
-                                                    setImageDataURIMap((anotherOldMap) => {
-
-                                                        return getNewMap(
-                                                            fileName,
-                                                            {
-                                                                aType: "loadcomplete",
-                                                                image: imageResult as string,
-                                                            },
-                                                            anotherOldMap
-                                                        );
-                                                    })
-                                                },
-                                                () => {
-
-                                                    setImageDataURIMap((anotherOldMap) => {
-
-                                                        return getNewMap(
-                                                            fileName,
-                                                            {
-                                                                aType: "loadfailed",
-                                                            },
-                                                            anotherOldMap
-                                                        );
-                                                    })
-                                                }
-                                            );
-
-                                        return oldMap;
-                                    }
-                                    else {
-
-                                        return getNewMap(
-                                            fileName,
-                                            {
-                                                aType: "loadcomplete",
-                                                image: fileReader.result as string,
-                                            },
-                                            oldMap
-                                        );
-                                    }
+                            imageDataURIMapDispatch(
+                                {
+                                    aType: "didLoad",
+                                    fileName,
+                                    fileReaderResult: fileReader.result as string,
                                 }
-                                else {
-
-                                    return oldMap;
-                                }
-                            });
+                            );
 
                             cleanUp(listener);
                         }
                         else if (event.type === "error" || event.type === "abort") {
 
-                            setImageDataURIMap((oldMap) => {
-
-                                return getNewMap(
+                            imageDataURIMapDispatch(
+                                {
+                                    aType: "loadingFailed",
                                     fileName,
-                                    {
-                                        aType: "loadfailed",
-                                    },
-                                    oldMap
-                                );
-                            });
+                                }
+                            );
 
                             cleanUp(listener);
                         }
@@ -280,10 +399,105 @@ export function StepBlock_PickImages(
                 }
             })
         },
-        [openedFilesList, setFileOrdering, setImageDataURIMap, imageDataURIMap]
+        [openedFilesList, setFileOrdering, imageDataURIMapDispatch, imageDataURIMap]
     );
 
     const [switchFileName, setSwitchFileName] = React.useState<string | null>(null);
+
+    const onSwitchClicked = React.useCallback(
+        (fileName: string) => {
+
+
+            if (switchFileName === null) {
+
+                setSwitchFileName(fileName);
+            }
+            else if (switchFileName === fileName) {
+
+                setSwitchFileName(null);
+            }
+            else {
+
+                setFileOrdering(oldArray => {
+
+                    if (switchFileName !== null) {
+
+                        const index1 = oldArray.indexOf(fileName);
+                        const index2 = oldArray.indexOf(switchFileName);
+
+                        const newArray = Array.from(oldArray);
+
+                        if (index1 !== index2 && index1 !== -1 && index2 !== -1) {
+
+                            newArray[index1] = switchFileName;
+                            newArray[index2] = fileName;
+
+                            return newArray;
+                        }
+
+                    }
+
+                    return oldArray;
+                });
+
+                setSwitchFileName(null);
+            }
+        },
+        [switchFileName, setFileOrdering]
+    );
+
+    const setImageElementCallback = React.useCallback(
+        (fileName: string, imageElement: HTMLImageElement) => {
+
+            setImageDataElementMap(oldMap => {
+
+                const newMap = new Map(oldMap);
+
+                newMap.set(fileName, imageElement);
+
+                return newMap;
+            })
+        },
+        [setImageDataElementMap]
+    );
+
+    const setIsPickedCallback = React.useCallback(
+        (fileName: string, isPicked: boolean) => {
+
+
+            setPickedFiles((oldMap) => {
+
+                const newMap = new Map(oldMap);
+
+                const isPickedElement = imageDataElementMap.get(fileName);
+
+                if (!isPicked || isPickedElement === undefined) {
+
+                    newMap.delete(fileName);
+                }
+                else {
+
+                    newMap.set(fileName, isPickedElement);
+                }
+
+                return newMap;
+            });
+        },
+        [imageDataElementMap, setPickedFiles]
+    );
+
+    const handleImageOnError = React.useCallback(
+        (fileName: string) => {
+
+            imageDataURIMapDispatch(
+                {
+                    aType: "loadingFailed",
+                    fileName,
+                }
+            );
+        },
+        [imageDataURIMapDispatch]
+    );
 
     return (
         <StepBlock
@@ -321,7 +535,7 @@ export function StepBlock_PickImages(
                     });
                 }}
             >
-                Pick all loaded images
+                Pick all loaded images ({imageDataElementMap.size})
             </Button>
 
             <div
@@ -347,100 +561,19 @@ export function StepBlock_PickImages(
 
                                 order={fileOrdering.indexOf(fileName)}
 
-                                imageDataURIMap={imageDataURIMap}
+                                loadStatus={imageDataURIMap.get(fileName)}
 
-                                handleImageOnError={(fileName) => {
-
-                                    setImageDataURIMap((oldMap) => {
-
-                                        return getNewMap(
-                                            fileName,
-                                            {
-                                                aType: "loadfailed",
-                                            },
-                                            oldMap
-                                        );
-                                    });
-                                }}
+                                handleImageOnError={handleImageOnError}
 
                                 isPicked={pickedFiles.has(fileName)}
 
-                                setIsPicked={(fileName, isPicked) => {
+                                setIsPicked={setIsPickedCallback}
 
-
-                                    setPickedFiles((oldMap) => {
-
-                                        const newMap = new Map(oldMap);
-
-                                        const isPickedElement = imageDataElementMap.get(fileName);
-
-                                        if (!isPicked || isPickedElement === undefined) {
-
-                                            newMap.delete(fileName);
-                                        }
-                                        else {
-
-                                            newMap.set(fileName, isPickedElement);
-                                        }
-
-                                        return newMap;
-                                    });
-                                }}
-
-                                pickedFiles={pickedFiles}
-
-                                setImageElement={(fileName, imageElement) => {
-
-                                    setImageDataElementMap(oldMap => {
-
-                                        const newMap = new Map(oldMap);
-
-                                        newMap.set(fileName, imageElement);
-
-                                        return newMap;
-                                    })
-                                }}
+                                setImageElement={setImageElementCallback}
 
                                 switchFileName={switchFileName}
 
-                                onSwitchClicked={(fileName) => {
-
-
-                                    if (switchFileName === null) {
-
-                                        setSwitchFileName(fileName);
-                                    }
-                                    else if (switchFileName === fileName) {
-
-                                        setSwitchFileName(null);
-                                    }
-                                    else {
-
-                                        setFileOrdering(oldArray => {
-
-                                            if (switchFileName !== null) {
-
-                                                const index1 = oldArray.indexOf(fileName);
-                                                const index2 = oldArray.indexOf(switchFileName);
-
-                                                const newArray = Array.from(oldArray);
-
-                                                if (index1 !== index2 && index1 !== -1 && index2 !== -1) {
-
-                                                    newArray[index1] = switchFileName;
-                                                    newArray[index2] = fileName;
-
-                                                    return newArray;
-                                                }
-
-                                            }
-
-                                            return oldArray;
-                                        });
-
-                                        setSwitchFileName(null);
-                                    }
-                                }}
+                                onSwitchClicked={onSwitchClicked}
 
                                 threadContext={threadContext}
                             />
@@ -468,11 +601,10 @@ function ImageBlock(
     {
         fileName,
         order,
-        imageDataURIMap,
+        loadStatus,
         handleImageOnError,
         isPicked,
         setIsPicked,
-        pickedFiles,
         setImageElement,
         switchFileName,
         onSwitchClicked,
@@ -480,19 +612,16 @@ function ImageBlock(
     }: {
         fileName: string,
         order: number,
-        imageDataURIMap: Map<string, LoadStatus>,
+        loadStatus: LoadStatus | undefined,
         handleImageOnError: (fileName: string) => void,
         isPicked: boolean,
         setIsPicked: (fileName: string, isPicked: boolean) => void,
-        pickedFiles: Map<string, HTMLImageElement>,
         setImageElement: (fileName: string, htmlImageElement: HTMLImageElement) => void,
         switchFileName: string | null,
         onSwitchClicked: (fileName: string) => void,
         threadContext: ThreadContext,
     }
 ) {
-
-    const loadStatus = imageDataURIMap.get(fileName);
 
     const imageRef = React.useRef<HTMLImageElement | null>(null);
 
@@ -507,7 +636,9 @@ function ImageBlock(
         (() => {
             switch (loadStatus.aType) {
 
-                case "loading": {
+                case "loadingimage":
+                case "loadingwebm":
+                case "loadwebmcomplete": {
                     return <CircularProgress />;
                 }
                 case "loadcomplete": {
@@ -685,7 +816,7 @@ function ImageBlock(
             key={fileName}
             style={{
                 border: "2px solid #aaaaaa",
-                backgroundColor: pickedFiles.has(fileName) ? "#a4a4ff" : "",
+                backgroundColor: isPicked ? "#a4a4ff" : "",
                 maxWidth: imageBlockSize + "px",
                 width: imageBlockSize + "px",
                 height: imageBlockSize * 1.8,
