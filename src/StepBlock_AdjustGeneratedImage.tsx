@@ -21,6 +21,7 @@ import React from "react";
 import { getLogoWithColor } from "./Logo";
 import { StepBlock } from "./StepBlock";
 import Popper from "@mui/material/Popper";
+import { lastDrawnCountSingleton } from "./LastDrawnCountSingleton";
 
 const darkPaperTheme = createTheme({
 
@@ -407,6 +408,8 @@ export function StepBlock_AdjustGeneratedImage(
                     }
 
                     onImageDrawn(canvas);
+
+                    lastDrawnCountSingleton.increment();
                 }
 
             }
@@ -629,6 +632,8 @@ export function StepBlock_AdjustGeneratedImage(
             setCanvasElementAnchor(belowCanvasElementRef.current);
         }
     );
+
+    // use OffscreenCanvas to draw in web worker once OffscreenCanvas is better and more widely supported by browsers
 
     return (
         <StepBlock

@@ -507,36 +507,57 @@ export function StepBlock_PickImages(
             <Typography>
                 Picked: {pickedFiles.size}/{openedFiles.size}.
             </Typography>
-            <Button
-                variant="contained"
+
+            <Box
                 sx={{
                     marginBottom: "6px",
                 }}
-                onClick={() => {
-
-                    setPickedFiles(() => {
-
-                        const newMap = new Map();
-
-                        const openedFileList = Array.from(openedFiles.keys());
-
-                        openedFileList.forEach((openedFile) => {
-
-                            const imageElement = imageDataElementMap.get(openedFile);
-
-                            if (imageElement !== undefined) {
-
-                                newMap.set(openedFile, imageElement);
-                            }
-
-                        });
-
-                        return newMap;
-                    });
-                }}
             >
-                Pick all loaded images ({imageDataElementMap.size})
-            </Button>
+
+                <Button
+                    variant="contained"
+                    onClick={() => {
+
+                        setPickedFiles(() => {
+
+                            const newMap = new Map();
+
+                            const openedFileList = Array.from(openedFiles.keys());
+
+                            openedFileList.forEach((openedFile) => {
+
+                                const imageElement = imageDataElementMap.get(openedFile);
+
+                                if (imageElement !== undefined) {
+
+                                    newMap.set(openedFile, imageElement);
+                                }
+
+                            });
+
+                            return newMap;
+                        });
+                    }}
+                >
+                    Pick all loaded images ({imageDataElementMap.size})
+                </Button>
+
+                <Button
+                    variant="contained"
+                    sx={{
+                        marginLeft: "10px",
+                    }}
+                    onClick={() => {
+
+                        setPickedFiles(() => {
+
+                            return new Map();
+                        });
+                    }}
+                >
+                    Unpick all images
+                </Button>
+            </Box>
 
             <div
                 style={{
@@ -906,7 +927,7 @@ function ImageBlock(
                                 <img
                                     style={{
                                         flex: "1",
-                                        maxWidth: "90vw",
+                                        minWidth: "0px",
                                         maxHeight: "90vh",
                                         objectFit: "contain",
                                     }}

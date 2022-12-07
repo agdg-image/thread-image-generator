@@ -6,6 +6,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/system/Container";
 import React from "react";
+import { lastDrawnCountSingleton } from "./LastDrawnCountSingleton";
 import { StepBlock } from "./StepBlock";
 
 export function StepBlock_GenerateImage(
@@ -22,7 +23,7 @@ export function StepBlock_GenerateImage(
 
     const [generatedImageDataURL, setGeneratedImageDataURL] = React.useState<string | null>(null);
 
-    const [timestamp, setTimestamp] = React.useState<Date | null>(null);
+    const [imageGeneratedCount, setImageGeneratedCount] = React.useState<number | null>(null);
 
     const [fileSizeInBytes, setFileSizeInBytes] = React.useState<number | null>(null);
 
@@ -42,6 +43,26 @@ export function StepBlock_GenerateImage(
         [aRef, generatedImageDataURL]
     );
 
+    const [lastDrawnCount, setLastDrawnCount] = React.useState<number | null>(null);
+
+    React.useEffect(
+        () => {
+
+            const listener = (newCount: number) => {
+
+                setLastDrawnCount(newCount);
+            };
+
+            lastDrawnCountSingleton.addListener(listener);
+
+            return () => {
+
+                lastDrawnCountSingleton.removeListener(listener);
+            };
+        },
+        []
+    )
+
     return (
         <StepBlock
             stepNumber={6}
@@ -56,7 +77,11 @@ export function StepBlock_GenerateImage(
                     }}
                 >
 
-                    <Container>
+                    <Container
+                        sx={{
+                            minHeight: "140px",
+                        }}
+                    >
 
                         <Typography variant="h6">
 
@@ -66,6 +91,10 @@ export function StepBlock_GenerateImage(
 
                         <Button
                             variant="contained"
+                            sx={{
+                                marginBottom: "10px",
+                            }}
+                            disabled={imageGeneratedCount !== null && lastDrawnCount !== null && imageGeneratedCount === lastDrawnCount}
                             onClick={() => {
 
                                 if (canvasElement !== null) {
@@ -76,7 +105,7 @@ export function StepBlock_GenerateImage(
 
                                     setFileSizeInBytes(window.atob(aGeneratedImageDataURL.split(",")[1]).length);
 
-                                    setTimestamp(new Date());
+                                    setImageGeneratedCount(lastDrawnCount);
                                 }
                             }}
                         >
@@ -85,15 +114,17 @@ export function StepBlock_GenerateImage(
 
                         </Button>
 
-                        <Typography>
+                        {
+                            imageGeneratedCount !== null && lastDrawnCount !== null && imageGeneratedCount !== lastDrawnCount
+                                ?
+                                    <Alert
+                                        severity="warning"
+                                    >
+                                        The generated image is not the latest drawn image, please generate it again.
+                                    </Alert>
+                                : <></>
 
-                            {
-                                generatedImageDataURL === null || timestamp === null
-                                    ? "The most recent drawn image has not been generated."
-                                    : "Image was generated at: " + timestamp.toLocaleTimeString()
-                            }
-
-                        </Typography>
+                        }
 
                     </Container>
 
@@ -166,7 +197,7 @@ export function StepBlock_GenerateImage(
                         />
 
                         {
-                            generatedImageDataURL === null
+                            generatedImageDataURL === null || imageGeneratedCount === null || lastDrawnCount === null || imageGeneratedCount !== lastDrawnCount
                                 ?
                                     <></>
                                 :
