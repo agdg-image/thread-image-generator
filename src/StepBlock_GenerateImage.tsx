@@ -11,8 +11,10 @@ import { StepBlock } from "./StepBlock";
 
 export function StepBlock_GenerateImage(
     {
+        stepNumber,
         canvasElement,
     }: {
+        stepNumber: number,
         canvasElement: HTMLCanvasElement | null,
     }
 ) {
@@ -65,7 +67,7 @@ export function StepBlock_GenerateImage(
 
     return (
         <StepBlock
-            stepNumber={6}
+            stepNumber={stepNumber}
             stepTitle="Generate image"
         >
 

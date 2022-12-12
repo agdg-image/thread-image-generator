@@ -22,6 +22,8 @@ import { getLogoWithColor } from "./Logo";
 import { StepBlock } from "./StepBlock";
 import Popper from "@mui/material/Popper";
 import { lastDrawnCountSingleton } from "./LastDrawnCountSingleton";
+import { clamp, getNumber } from "./helper";
+import { WorkflowType } from "./WorkflowType";
 
 const darkPaperTheme = createTheme({
 
@@ -76,6 +78,36 @@ function getAvailableBlocks(
     }
 }
 
+function getCanvasDrawingOffset(
+    {
+        columnNum,
+        rowNum,
+        imageBlockItemWidth,
+        imageBlockItemHeight,
+        doCanvasGap,
+        canvasGapSize,
+    }: {
+        columnNum: number,
+        rowNum: number,
+        imageBlockItemWidth: number,
+        imageBlockItemHeight: number,
+        doCanvasGap: boolean,
+        canvasGapSize: number,
+    }
+): {
+    dx: number,
+    dy: number,
+} {
+
+    const dx = (columnNum - 1) * imageBlockItemWidth + (doCanvasGap ? (columnNum - 1)*canvasGapSize : 0);
+    const dy = (rowNum - 1) * imageBlockItemHeight + (doCanvasGap ? (rowNum - 1)*canvasGapSize : 0);
+
+    return {
+        dx,
+        dy
+    };
+}
+
 function getCutDrawing(
     columnNum: number,
     rowNum: number,
@@ -97,8 +129,17 @@ function getCutDrawing(
     let sWidth;
     let sHeight;
 
-    const dx = (columnNum - 1) * imageBlockItemWidth + (doCanvasGap ? (columnNum - 1)*canvasGapSize : 0);
-    const dy = (rowNum - 1) * imageBlockItemHeight + (doCanvasGap ? (rowNum - 1)*canvasGapSize : 0);
+    const {
+        dx,
+        dy,
+    } = getCanvasDrawingOffset({
+        columnNum,
+        rowNum,
+        imageBlockItemWidth,
+        imageBlockItemHeight,
+        doCanvasGap,
+        canvasGapSize,
+    });
 
     const dWidth = imageBlockItemWidth;
     const dHeight = imageBlockItemHeight;
@@ -152,8 +193,17 @@ function getStretchedDrawing(
     const sWidth = pWidth;
     const sHeight = pHeight;
 
-    const dx = (columnNum - 1) * imageBlockItemWidth + (doCanvasGap ? (columnNum - 1)*canvasGapSize : 0);
-    const dy = (rowNum - 1) * imageBlockItemHeight + (doCanvasGap ? (rowNum - 1)*canvasGapSize : 0);
+    const {
+        dx,
+        dy,
+    } = getCanvasDrawingOffset({
+        columnNum,
+        rowNum,
+        imageBlockItemWidth,
+        imageBlockItemHeight,
+        doCanvasGap,
+        canvasGapSize,
+    });
 
     const dWidth = imageBlockItemWidth;
     const dHeight = imageBlockItemHeight;
@@ -172,12 +222,18 @@ function getStretchedDrawing(
 
 export function StepBlock_AdjustGeneratedImage(
     {
+        stepNumber,
         pickedFiles,
+        setPickedFiles,
         fileOrdering,
+        workflowType,
         onImageDrawn,
     }: {
+        stepNumber: number,
         pickedFiles: Map<string, HTMLImageElement>;
+        setPickedFiles: React.Dispatch<React.SetStateAction<Map<string, HTMLImageElement>>>,
         fileOrdering: Array<string>,
+        workflowType: WorkflowType,
         onImageDrawn: (canvas: HTMLCanvasElement) => void,
     }
 ) {
@@ -185,6 +241,8 @@ export function StepBlock_AdjustGeneratedImage(
     const [pickedImageBitmaps, setPickedImageBitmaps] = React.useState<Map<string, ImageBitmap | Promise<ImageBitmap>>>(new Map());
 
     const canvasRef = React.createRef<HTMLCanvasElement>();
+
+    const canvas2Ref = React.createRef<HTMLCanvasElement>();
 
     const [imageBlockItemWidth, setImageBlockItemWidth] = React.useState(256);
     const [imageBlockItemHeight, setImageBlockItemHeight] = React.useState(256);
@@ -237,7 +295,7 @@ export function StepBlock_AdjustGeneratedImage(
     const [canvasHeight, setCanvasHeight] = React.useState(fittingDimensionY);
 
     const fittingDimensions =
-        fittingDimensionX*fittingDimensionY === canvasWidth * canvasHeight;
+        fittingDimensionX === canvasWidth && fittingDimensionY === canvasHeight;
 
     React.useEffect(
         () => {
@@ -322,6 +380,10 @@ export function StepBlock_AdjustGeneratedImage(
 
                     let pickedFileIndex = 0;
 
+                    const methodToUse = cutOrStretched === 0
+                        ? getCutDrawing
+                        : getStretchedDrawing;
+
                     for (let rowNum = 1; rowNum <= rowCount; rowNum++) {
 
                         for (let columnNum = 1; columnNum <= columnCount; columnNum++) {
@@ -345,10 +407,6 @@ export function StepBlock_AdjustGeneratedImage(
                                 if (pickedImageBitmap instanceof ImageBitmap) {
 
                                     const p = pickedImageBitmap;
-
-                                    const methodToUse = cutOrStretched === 0
-                                        ? getCutDrawing
-                                        : getStretchedDrawing;
 
                                     const [
                                         sx,
@@ -422,6 +480,91 @@ export function StepBlock_AdjustGeneratedImage(
         ]
     );
 
+    React.useEffect(
+        () => {
+
+            if (canvas2Ref.current !== null) {
+
+                const canvas = canvas2Ref.current;
+
+                const ctx = canvas.getContext('2d');
+
+                if (ctx !== null) {
+
+                    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+                    if (doCanvasGridCut) {
+
+                        ctx.save();
+
+                        const {
+                            dx: dx1,
+                            dy: dy1,
+                        } = getCanvasDrawingOffset({
+                            columnNum: canvasGridCutColumnStart,
+                            rowNum: canvasGridCutRowStart,
+                            imageBlockItemWidth,
+                            imageBlockItemHeight,
+                            doCanvasGap,
+                            canvasGapSize,
+                        });
+
+                        const {
+                            dx: dx2,
+                            dy: dy2,
+                        } = getCanvasDrawingOffset({
+                            columnNum: canvasGridCutColumnStart + canvasGridCutColumnWidth,
+                            rowNum: canvasGridCutRowStart + canvasGridCutRowHeight,
+                            imageBlockItemWidth,
+                            imageBlockItemHeight,
+                            doCanvasGap,
+                            canvasGapSize,
+                        });
+
+                        const xStart = dx1 + 2;
+                        const yStart = dy1 + 2;
+
+                        const xEnd = dx2 - 4 - canvasGapSize;
+                        const yEnd = dy2 - 4 - canvasGapSize;
+
+                        const gradient = ctx.createConicGradient(
+                            0,
+                            (xStart + xEnd)/2,
+                            (yStart + yEnd)/2
+                        );
+
+                        const stops = 12;
+                        for (let i = 0; i < stops; i += 2) {
+
+                            gradient.addColorStop(i/stops, "#777");
+                            gradient.addColorStop((i + 1)/stops, "#444");
+                        }
+                        gradient.addColorStop(1, "#777");
+
+                        ctx.strokeStyle = gradient;
+                        ctx.lineWidth = 4;
+
+                        ctx.strokeRect(
+                            xStart,
+                            yStart,
+                            xEnd - xStart,
+                            yEnd - yStart,
+                        );
+
+                        ctx.restore();
+                    }
+                }
+
+            }
+        },
+        [
+            canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight,
+            canvas2Ref,
+            canvasGridCutColumnStart, canvasGridCutColumnWidth, canvasGridCutRowStart, canvasGridCutRowHeight, doCanvasGridCut,
+            doCanvasGap, canvasGapSize, fileOrdering,
+        ]
+    );
+
     const pickedFilesCount = pickedFiles.size;
 
     const availableBlocks = getAvailableBlocks(columnCount, rowCount, canvasGridCutColumnStart, canvasGridCutColumnEnd, canvasGridCutRowStart, canvasGridCutRowEnd, doCanvasGridCut);
@@ -434,7 +577,7 @@ export function StepBlock_AdjustGeneratedImage(
             warningString:
                 `
                 Grid size is smaller than picked images, not all images are included.
-                Please increase column or row count, or pick fewer images. Picked files/grid cells: ${pickedFilesCount}/${availableBlocks}.
+                Please either: Increase column or row count; or pick fewer images. Picked files/grid cells: ${pickedFilesCount}/${availableBlocks}.
                 `,
         },
         {
@@ -550,75 +693,196 @@ export function StepBlock_AdjustGeneratedImage(
 
     })();
 
+    const calculateNumberOfImagesAndCutoutForCurrentColumnAndRow = (() => {
+
+        const cutColumnWidth = columnCount % 2 === 0 ? 2 : 1;
+
+        const cutRowHeight = rowCount % 2 === 0 ? 2 : 1;
+
+        const cutoutSize = cutColumnWidth*cutRowHeight;
+
+        const currentDimension = columnCount*rowCount;
+
+        const allowedNumberOfImages = currentDimension - cutoutSize;
+
+        return {
+            cutColumnStart:  Math.ceil(columnCount/2),
+            cutColumnWidth,
+            cutRowStart:  Math.ceil(rowCount/2),
+            cutRowHeight,
+            allowedNumberOfImages,
+        } as const;
+
+    })();
+
+    const imagesToBeRemovedOrNoText = calculateNumberOfImagesAndCutoutForCurrentColumnAndRow.allowedNumberOfImages <= pickedFiles.size
+        ? "(images removed: " + (pickedFiles.size - calculateNumberOfImagesAndCutoutForCurrentColumnAndRow.allowedNumberOfImages) + ")"
+        : "";
+
     const attemptFitColumnsRowsAndCutButton = (
-        <Button
-            variant="contained"
+        <Box
             sx={{
-                marginBottom: "10px",
-            }}
-            disabled={
-                attemptedFitForColumnsRowsAndCut === null ||
-                (() => {
-
-                    const {
-                        cutColumnStart,
-                        cutColumnWidth,
-                        cutRowStart,
-                        cutRowHeight,
-                    } = attemptedFitForColumnsRowsAndCut;
-
-                    return (
-                        attemptedFitForColumnsRowsAndCut.columnCount === columnCount &&
-                        attemptedFitForColumnsRowsAndCut.rowCount === rowCount &&
-                        cutColumnStart === canvasGridCutColumnStart &&
-                        cutColumnWidth === canvasGridCutColumnWidth &&
-                        cutRowStart === canvasGridCutRowStart &&
-                        cutRowHeight === canvasGridCutRowHeight &&
-                        doCanvasGridCut
-                    );
-                })()
-            }
-            onClick={() => {
-
-                if (attemptedFitForColumnsRowsAndCut !== null) {
-
-                    const {
-                        cutColumnStart,
-                        cutColumnWidth,
-                        cutRowStart,
-                        cutRowHeight,
-                    } = attemptedFitForColumnsRowsAndCut;
-
-                    setColumnCount(attemptedFitForColumnsRowsAndCut.columnCount);
-                    setRowCount(attemptedFitForColumnsRowsAndCut.rowCount);
-
-                    setCanvasGridCutColumnStart(cutColumnStart);
-                    setCanvasGridCutColumnWidth(cutColumnWidth);
-
-                    setCanvasGridCutRowStart(cutRowStart);
-                    setCanvasGridCutRowHeight(cutRowHeight);
-
-                    setDoCanvasGridCut(true);
-                }
+                display: "flex",
+                flexDirection: "row",
+                gap: "10px",
+                alignItems: "center",
+                border: "2px dotted rgba(0, 0, 0, 0.3)",
+                padding: "4px",
+                margin: "2px",
             }}
         >
+            <Button
+                variant="contained"
+                disabled={
+                    attemptedFitForColumnsRowsAndCut === null ||
+                    (() => {
+
+                        const {
+                            cutColumnStart,
+                            cutColumnWidth,
+                            cutRowStart,
+                            cutRowHeight,
+                        } = attemptedFitForColumnsRowsAndCut;
+
+                        return (
+                            attemptedFitForColumnsRowsAndCut.columnCount === columnCount &&
+                            attemptedFitForColumnsRowsAndCut.rowCount === rowCount &&
+                            cutColumnStart === canvasGridCutColumnStart &&
+                            cutColumnWidth === canvasGridCutColumnWidth &&
+                            cutRowStart === canvasGridCutRowStart &&
+                            cutRowHeight === canvasGridCutRowHeight &&
+                            doCanvasGridCut
+                        );
+                    })()
+                }
+                onClick={() => {
+
+                    if (attemptedFitForColumnsRowsAndCut !== null) {
+
+                        const {
+                            cutColumnStart,
+                            cutColumnWidth,
+                            cutRowStart,
+                            cutRowHeight,
+                        } = attemptedFitForColumnsRowsAndCut;
+
+                        setColumnCount(attemptedFitForColumnsRowsAndCut.columnCount);
+                        setRowCount(attemptedFitForColumnsRowsAndCut.rowCount);
+
+                        setCanvasGridCutColumnStart(cutColumnStart);
+                        setCanvasGridCutColumnWidth(cutColumnWidth);
+
+                        setCanvasGridCutRowStart(cutRowStart);
+                        setCanvasGridCutRowHeight(cutRowHeight);
+
+                        setDoCanvasGridCut(true);
+                    }
+                }}
+            >
+                {
+                    (() => {
+
+                        const innerText =
+                            attemptedFitForColumnsRowsAndCut === null
+                                ? ""
+                                : `new grid size: ${attemptedFitForColumnsRowsAndCut.columnCount}x${attemptedFitForColumnsRowsAndCut.rowCount}`
+
+
+                        return `Set column & row count and cutout to include all images and regular size (${innerText})`;
+                    })()
+                }
+
+            </Button>
+
             {
-                (() => {
+                workflowType === "full_control"
+                    ?
+                        <>
+                            <Typography
+                                sx={{
+                                    fontWeight: "bold",
+                                    fontStyle: "italic",
+                                }}
+                            >
+                                or
+                            </Typography>
 
-                    const innerText =
-                        attemptedFitForColumnsRowsAndCut === null
-                            ? ""
-                            : `new grid size: ${attemptedFitForColumnsRowsAndCut.columnCount}x${attemptedFitForColumnsRowsAndCut.rowCount}`
+                            <Button
+                                variant="contained"
+                                disabled={(() => {
 
+                                    const {
+                                        cutColumnStart,
+                                        cutColumnWidth,
+                                        cutRowStart,
+                                        cutRowHeight,
+                                        allowedNumberOfImages,
+                                    } = calculateNumberOfImagesAndCutoutForCurrentColumnAndRow;
 
-                    return `Set column & row count and cutout to include all images (${innerText})`;
-                })()
+                                    return (
+                                        allowedNumberOfImages >= pickedFiles.size &&
+                                        cutColumnStart === canvasGridCutColumnStart &&
+                                        cutColumnWidth === canvasGridCutColumnWidth &&
+                                        cutRowStart === canvasGridCutRowStart &&
+                                        cutRowHeight === canvasGridCutRowHeight &&
+                                        doCanvasGridCut
+                                    );
+
+                                })()}
+                                onClick={() => {
+
+                                    const {
+                                        cutColumnStart,
+                                        cutColumnWidth,
+                                        cutRowStart,
+                                        cutRowHeight,
+                                        allowedNumberOfImages,
+                                    } = calculateNumberOfImagesAndCutoutForCurrentColumnAndRow;
+
+                                    setCanvasGridCutColumnStart(cutColumnStart);
+                                    setCanvasGridCutColumnWidth(cutColumnWidth);
+
+                                    setCanvasGridCutRowStart(cutRowStart);
+                                    setCanvasGridCutRowHeight(cutRowHeight);
+
+                                    setDoCanvasGridCut(true);
+
+                                    setPickedFiles(oldPickedFiles => {
+
+                                        const newPickedFiles = new Map(oldPickedFiles);
+
+                                        const countImagesToRemove = oldPickedFiles.size - allowedNumberOfImages;
+
+                                        const fileOrderingLength = fileOrdering.length;
+
+                                        for (let i = 0; i < countImagesToRemove; i++) {
+
+                                            for (let j = fileOrderingLength - 1; j >= 0; j--) {
+
+                                                const fileName = fileOrdering[j];
+
+                                                if (newPickedFiles.has(fileName)) {
+
+                                                    newPickedFiles.delete(fileName);
+
+                                                    j = -1;
+                                                }
+                                            }
+                                        }
+
+                                        return newPickedFiles;
+
+                                    });
+                                }}
+                            >
+                                Unpick images and set cutout to fit the picked images inside the current column & row counts {imagesToBeRemovedOrNoText}
+
+                            </Button>
+                        </>
+                    : <></>
             }
-
-        </Button>
+        </Box>
     );
-
-    const columnRowCutAttempt_notPresentOrNeeded = !insufficientBlocks || attemptedFitForColumnsRowsAndCut === null;
 
     const logoSrc = getLogoWithColor(logoColor);
 
@@ -637,7 +901,7 @@ export function StepBlock_AdjustGeneratedImage(
 
     return (
         <StepBlock
-            stepNumber={5}
+            stepNumber={stepNumber}
             stepTitle="Adjust generation"
         >
             <Typography>
@@ -648,16 +912,36 @@ export function StepBlock_AdjustGeneratedImage(
                     maxWidth: 800,
                 }}
             >
-                <canvas
+                <div
                     style={{
-                        border: "2px solid black",
-                        width: "100%",
-                        maxHeight: "800px",
+                        display: "grid",
                     }}
-                    width={canvasWidth}
-                    height={canvasHeight}
-                    ref={canvasRef}
-                />
+                >
+
+                    <canvas
+                        style={{
+                            border: "2px solid black",
+                            width: "100%",
+                            maxHeight: "800px",
+                            gridArea: "1 / 1",
+                        }}
+                        width={canvasWidth}
+                        height={canvasHeight}
+                        ref={canvasRef}
+                    />
+
+                    <canvas
+                        style={{
+                            border: "2px solid black",
+                            width: "100%",
+                            maxHeight: "800px",
+                            gridArea: "1 / 1",
+                        }}
+                        width={canvasWidth}
+                        height={canvasHeight}
+                        ref={canvas2Ref}
+                    />
+                </div>
 
                 <Box
                     ref={belowCanvasElementRef}
@@ -683,7 +967,7 @@ export function StepBlock_AdjustGeneratedImage(
                         warnings={warnings}
                         fittingDimensions={fittingDimensions}
                         fitCanvasSizeButton={fitCanvasSizeButton}
-                        columnRowCutAttempt_notPresentOrNeeded={columnRowCutAttempt_notPresentOrNeeded}
+                        insufficientBlocks={insufficientBlocks}
                         attemptFitColumnsRowsAndCutButton={attemptFitColumnsRowsAndCutButton}
                     />
                 </Popper>
@@ -933,6 +1217,11 @@ export function StepBlock_AdjustGeneratedImage(
                     collapsible={true}
                     switchedOnTheme={doCanvasGridCut}
                 >
+
+                    <Alert severity="info">
+                        (The cutout rectangle marker is not saved to the final image).
+                    </Alert>
+
                     <FormControlLabel
                         sx={{
                             marginTop: "6px",
@@ -1140,7 +1429,7 @@ export function StepBlock_AdjustGeneratedImage(
                     warnings={warnings}
                     fittingDimensions={fittingDimensions}
                     fitCanvasSizeButton={fitCanvasSizeButton}
-                    columnRowCutAttempt_notPresentOrNeeded={columnRowCutAttempt_notPresentOrNeeded}
+                    insufficientBlocks={insufficientBlocks}
                     attemptFitColumnsRowsAndCutButton={attemptFitColumnsRowsAndCutButton}
                 />
             </Container>
@@ -1303,22 +1592,6 @@ function DimensionControl(
     );
 }
 
-function getNumber(min: number, value: string, max: number) {
-
-    let valueNum = Number.parseInt(value);
-
-    if (Number.isNaN(valueNum)) {
-        valueNum = min;
-    }
-
-    return clamp(min, valueNum, max);
-}
-
-function clamp(min: number, value: number, max: number) {
-
-    return Math.max(min, Math.min(value, max));
-}
-
 function MainCard(
     {
         title,
@@ -1404,13 +1677,13 @@ function Warnings(
         warnings,
         fittingDimensions,
         fitCanvasSizeButton,
-        columnRowCutAttempt_notPresentOrNeeded,
+        insufficientBlocks,
         attemptFitColumnsRowsAndCutButton,
     }: {
         warnings: Array<string>,
         fittingDimensions: boolean,
         fitCanvasSizeButton: JSX.Element,
-        columnRowCutAttempt_notPresentOrNeeded: boolean,
+        insufficientBlocks: boolean,
         attemptFitColumnsRowsAndCutButton: JSX.Element,
     }
 ) {
@@ -1454,9 +1727,9 @@ function Warnings(
                 }
 
                 {
-                    columnRowCutAttempt_notPresentOrNeeded
-                        ? <></>
-                        : attemptFitColumnsRowsAndCutButton
+                    insufficientBlocks
+                        ? attemptFitColumnsRowsAndCutButton
+                        : <></>
                 }
 
             </Box>

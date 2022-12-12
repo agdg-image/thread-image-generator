@@ -8,15 +8,17 @@ import { parseThreadHTML, ThreadContext } from "./ThreadContext";
 
 export function StepBlock_AddThreadContext(
     {
+        stepNumber,
         setThreadContext,
     }: {
+        stepNumber: number,
         setThreadContext: React.Dispatch<React.SetStateAction<ThreadContext>>
     }
 ) {
 
     return (
         <StepBlock
-            stepNumber={3}
+            stepNumber={stepNumber}
             stepTitle="Add thread context (optional)"
         >
 

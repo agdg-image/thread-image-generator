@@ -3,7 +3,10 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
+import CircularProgress from "@mui/material/CircularProgress";
 import Container from "@mui/material/Container";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import React from "react";
@@ -31,6 +34,8 @@ export function OpenImageFiles(
 
                 addFilesCallback(files);
             }
+
+            setLoadingDialogOpen(false);
         },
         [addFilesCallback]
     );
@@ -41,8 +46,29 @@ export function OpenImageFiles(
 
     const [logoFileName, setLogoFileName] = React.useState("the-thread-logo-file-name.png");
 
+    const [loadingDialogOpen, setLoadingDialogOpen] = React.useState(false);
+
     return (
         <>
+            <Dialog
+                open={loadingDialogOpen}
+                onClose={() => {
+                    setLoadingDialogOpen(false);
+                }}
+            >
+                <DialogTitle>
+                    {"Opening files"}
+                </DialogTitle>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        padding: "8px",
+                    }}
+                >
+                    <CircularProgress/>
+                </Box>
+            </Dialog>
 
             <Box
                 sx={{
@@ -96,6 +122,10 @@ export function OpenImageFiles(
                             <Button
                                 variant="contained"
                                 component="label"
+                                onClick={() => {
+
+                                    setLoadingDialogOpen(true);
+                                }}
                             >
 
                                 Open image and video files
@@ -245,10 +275,11 @@ export function OpenImageFiles(
                                         flexDirection: "column",
                                         gap: "10px",
                                         padding: "6px",
+                                        minHeight: "240px",
                                     }}
                                 >
                                     <Typography variant="h6">
-                                        Misc
+                                        Remove thumbnails
                                     </Typography>
 
                                     <Typography>
@@ -263,6 +294,15 @@ export function OpenImageFiles(
                                     >
                                         Remove all thumbnails ({thumbnailCount})
                                     </Button>
+
+                                    {
+                                        thumbnailCount > 0
+                                            ?
+                                            <Alert severity="warning">
+                                                Thumbnails should usuallly be removed.
+                                            </Alert>
+                                            : <></>
+                                    }
 
                                 </Container>
                             </Card>

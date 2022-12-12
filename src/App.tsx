@@ -15,6 +15,8 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import { StepBlock_AddThreadContext } from './StepBlock_AddThreadContext';
 import { ThreadContext } from './ThreadContext';
+import { StepBlock_SelectWorkflow } from './StepBlock_SelectWorkflow';
+import { WorkflowType } from './WorkflowType';
 
 
 
@@ -40,6 +42,8 @@ function App() {
   const [threadContext, setThreadContext] = React.useState<ThreadContext>(new Map());
 
   const [canvasElement, setCanvasElement] = React.useState<HTMLCanvasElement | null>(null);
+
+  const [selectedWorkflowType, setSelectedWorkflowType] = React.useState<WorkflowType>("pick_carefully");
 
   React.useEffect(
     () => {
@@ -186,9 +190,12 @@ function App() {
           </Link>
         </Container>
 
-        <StepBlock_DownloadImages />
+        <StepBlock_DownloadImages
+          stepNumber={1}
+        />
 
         <StepBlock_OpenImages
+          stepNumber={2}
           addFilesCallback={(files) => {
 
             setImageFiles(previousImageFiles => {
@@ -241,21 +248,34 @@ function App() {
         />
 
         <StepBlock_AddThreadContext
+
+          stepNumber={3}
           setThreadContext={setThreadContext}
         />
 
+        <StepBlock_SelectWorkflow
+          stepNumber={4}
+          selectedWorkflowType={selectedWorkflowType}
+          onChangeSelectedWorkflowType={setSelectedWorkflowType}
+        />
+
         <StepBlock_PickImages
+          stepNumber={5}
           openedFiles={imageFiles}
           pickedFiles={pickedFiles}
           setPickedFiles={setPickedFiles}
           fileOrdering={fileOrdering}
           setFileOrdering={setFileOrdering}
           threadContext={threadContext}
+          workflowType={selectedWorkflowType}
         />
 
         <StepBlock_AdjustGeneratedImage
+          stepNumber={6}
           pickedFiles={pickedFiles}
+          setPickedFiles={setPickedFiles}
           fileOrdering={fileOrdering}
+          workflowType={selectedWorkflowType}
           onImageDrawn={(canvasElement) => {
 
             setCanvasElement(canvasElement);
@@ -263,6 +283,7 @@ function App() {
         />
 
         <StepBlock_GenerateImage
+          stepNumber={7}
           canvasElement={canvasElement}
         />
 

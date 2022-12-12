@@ -2,11 +2,17 @@
 import Typography from "@mui/material/Typography";
 import { StepBlock } from "./StepBlock";
 
-export function StepBlock_DownloadImages() {
+export function StepBlock_DownloadImages(
+    {
+        stepNumber,
+    }: {
+        stepNumber: number,
+    }
+) {
 
     return (
         <StepBlock
-            stepNumber={1}
+            stepNumber={stepNumber}
             stepTitle="Download images and videos from thread"
         >
 

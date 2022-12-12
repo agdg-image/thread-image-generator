@@ -15,6 +15,8 @@ import Dialog from "@mui/material/Dialog";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import Container from "@mui/material/Container";
+import { WorkflowType } from "./WorkflowType";
+import { getNumber } from "./helper";
 
 export type LoadStatus =
     {
@@ -172,19 +174,23 @@ function imageDataURIMapReducer(
 
 export function StepBlock_PickImages(
     {
+        stepNumber,
         openedFiles,
         pickedFiles,
         setPickedFiles,
         fileOrdering,
         setFileOrdering,
         threadContext,
+        workflowType,
     }: {
+        stepNumber: number,
         openedFiles: ImageFileMap,
         pickedFiles: Map<string, HTMLImageElement>,
         setPickedFiles: React.Dispatch<React.SetStateAction<Map<string, HTMLImageElement>>>,
         fileOrdering: Array<string>,
         setFileOrdering: React.Dispatch<React.SetStateAction<Array<string>>>,
         threadContext: ThreadContext,
+        workflowType: WorkflowType,
     }
 ) {
 
@@ -501,63 +507,167 @@ export function StepBlock_PickImages(
 
     return (
         <StepBlock
-            stepNumber={4}
+            stepNumber={stepNumber}
             stepTitle="Pick images"
         >
+
+            <Typography>
+                Pick which images should be shown on the collage.
+            </Typography>
+
             <Typography>
                 Picked: {pickedFiles.size}/{openedFiles.size}.
             </Typography>
 
-            <Box
+
+            <Card
                 sx={{
                     marginBottom: "6px",
+                    paddingBottom: "6px",
                 }}
             >
+                <Container>
 
-                <Button
-                    variant="contained"
-                    onClick={() => {
+                    <Typography
+                        variant="h6"
+                    >
 
-                        setPickedFiles(() => {
+                        Extra controls
 
-                            const newMap = new Map();
+                    </Typography>
 
-                            const openedFileList = Array.from(openedFiles.keys());
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "6px",
+                        }}
+                    >
 
-                            openedFileList.forEach((openedFile) => {
+                        <Button
+                            variant="contained"
+                            disabled={pickedFiles.size === imageDataElementMap.size}
+                            onClick={() => {
 
-                                const imageElement = imageDataElementMap.get(openedFile);
+                                setPickedFiles(() => {
 
-                                if (imageElement !== undefined) {
+                                    const newMap = new Map();
 
-                                    newMap.set(openedFile, imageElement);
-                                }
+                                    const openedFileList = Array.from(openedFiles.keys());
 
-                            });
+                                    openedFileList.forEach((openedFile) => {
 
-                            return newMap;
-                        });
-                    }}
-                >
-                    Pick all loaded images ({imageDataElementMap.size})
-                </Button>
+                                        const imageElement = imageDataElementMap.get(openedFile);
 
-                <Button
-                    variant="contained"
-                    sx={{
-                        marginLeft: "10px",
-                    }}
-                    onClick={() => {
+                                        if (imageElement !== undefined) {
 
-                        setPickedFiles(() => {
+                                            newMap.set(openedFile, imageElement);
+                                        }
 
-                            return new Map();
-                        });
-                    }}
-                >
-                    Unpick all images
-                </Button>
-            </Box>
+                                    });
+
+                                    return newMap;
+                                });
+                            }}
+                        >
+                            Pick all loaded images ({imageDataElementMap.size})
+                        </Button>
+
+                        <Button
+                            variant="contained"
+                            disabled={pickedFiles.size === 0}
+                            onClick={() => {
+
+                                setPickedFiles(() => {
+
+                                    return new Map();
+                                });
+                            }}
+                        >
+                            Unpick all images
+                        </Button>
+
+                        <Button
+                            variant="contained"
+                            onClick={() => {
+
+                                setFileOrdering((oldFileOrdering) => {
+
+                                    const newFileOrdering = Array.from(oldFileOrdering);
+
+                                    shuffle(newFileOrdering);
+
+                                    return newFileOrdering;
+                                });
+                            }}
+                        >
+                            Shuffle open images
+                        </Button>
+
+                        {
+                            workflowType === "full_control"
+                                ?
+                                    <>
+                                        <Button
+                                            variant="contained"
+                                            disabled={pickedFiles.size === 0 || imageDataElementMap.size === 0 || pickedFiles.size === openedFiles.size}
+                                            onClick={() => {
+
+                                                if (pickedFiles.size !== 0) {
+
+                                                    const imageDataFilenamesCopy = Array.from(imageDataElementMap.keys());
+
+                                                    shuffle(imageDataFilenamesCopy);
+
+                                                    // pickedFiles size ought to always be lower than imageDataElementMap size
+                                                    const newSize = Math.min(pickedFiles.size, imageDataElementMap.size);
+
+                                                    const newPickedFiles = new Map<string, HTMLImageElement>();
+
+                                                    for (let i = 0; i < newSize; i++) {
+
+                                                        const fileName = imageDataFilenamesCopy[i];
+
+                                                        const imageData = imageDataElementMap.get(fileName);
+
+                                                        if (imageData !== undefined) {
+
+                                                            newPickedFiles.set(fileName, imageData);
+                                                        }
+                                                    }
+
+                                                    setPickedFiles(newPickedFiles);
+                                                }
+                                            }}
+                                        >
+                                            Pick images randomly (does not change number of picked files)
+                                        </Button>
+
+                                        <Card
+
+                                            sx={{
+                                                width: "100%",
+                                                marginTop: "10px",
+                                            }}
+                                        >
+                                            <Container>
+
+                                                <ChangePickedImagesNumber
+                                                    imageDataElementMap={imageDataElementMap}
+                                                    pickedFiles={pickedFiles}
+                                                    setPickedFiles={setPickedFiles}
+                                                    fileOrdering={fileOrdering}
+                                                />
+                                            </Container>
+                                        </Card>
+                                    </>
+                                : <></>
+                        }
+
+                    </Box>
+
+                </Container>
+            </Card>
 
             <div
                 style={{
@@ -953,5 +1063,133 @@ function ImageBlock(
             </Dialog>
 
         </div>
+    );
+}
+
+
+
+// https://stackoverflow.com/questions/6274339/how-can-i-shuffle-an-array
+function shuffle<E>(a: Array<E>) {
+    var j, x, i;
+    for (i = a.length - 1; i > 0; i--) {
+        j = Math.floor(Math.random() * (i + 1));
+        x = a[i];
+        a[i] = a[j];
+        a[j] = x;
+    }
+    return a;
+}
+
+function ChangePickedImagesNumber(
+    {
+        imageDataElementMap,
+        pickedFiles,
+        setPickedFiles,
+        fileOrdering,
+    }: {
+        imageDataElementMap: Map<string, HTMLImageElement>,
+        pickedFiles: Map<string, HTMLImageElement>,
+        setPickedFiles: (newPickedFiles: Map<string, HTMLImageElement>) => void,
+        fileOrdering: Array<string>,
+    }
+
+) {
+
+    const inputRef = React.createRef<HTMLInputElement>();
+
+    return (
+        <>
+
+            <Typography variant="h6">
+                Change number of picked files ({pickedFiles.size})
+            </Typography>
+
+            <input
+                ref={inputRef}
+                min={0}
+                max={imageDataElementMap.size}
+                type="number"
+            />
+            <Button
+                variant="contained"
+                sx={{
+                    margin: "10px",
+                }}
+                onClick={() => {
+
+                    if (inputRef.current !== null) {
+
+                        const newNum = getNumber(0, inputRef.current.value, imageDataElementMap.size);
+
+                        const currentNum = pickedFiles.size;
+
+                        if (currentNum === newNum) {
+
+                            // no change
+                        }
+                        else if (currentNum < newNum) {
+
+                            // pick
+
+                            const notCurrentlyPicked = new Array<string>();
+                            fileOrdering.forEach(key => {
+
+                                if (!pickedFiles.has(key) && imageDataElementMap.has(key)) {
+
+                                    notCurrentlyPicked.push(key);
+                                }
+                            });
+
+                            const adding = Math.min(newNum - currentNum, notCurrentlyPicked.length);
+
+                            const newPickedFiles = new Map(pickedFiles);
+
+                            for (let i = 0; i < adding; i++) {
+
+                                const key = notCurrentlyPicked[i];
+
+                                const value = imageDataElementMap.get(key);
+
+                                if (value !== undefined) {
+
+                                    newPickedFiles.set(key, value);
+                                }
+                            }
+
+                            setPickedFiles(newPickedFiles);
+                        }
+                        else {
+
+                            // unpick
+
+                            const removing = currentNum - newNum;
+
+                            const newPickedFiles = new Map(pickedFiles);
+
+                            const fileOrderingLength = fileOrdering.length;
+
+                            for (let i = 0; i < removing; i++) {
+
+                                for (let j = fileOrderingLength - 1; j >= 0; j--) {
+
+                                    const fileName = fileOrdering[j];
+
+                                    if (newPickedFiles.has(fileName)) {
+
+                                        newPickedFiles.delete(fileName);
+
+                                        j = -1;
+                                    }
+                                }
+                            }
+
+                            setPickedFiles(newPickedFiles);
+                        }
+                    }
+                }}
+            >
+                Change number of picked files (picks and unpicks arbitrarily)
+            </Button>
+        </>
     );
 }
