@@ -220,6 +220,79 @@ function getStretchedDrawing(
     ];
 }
 
+function getDrawingState(
+    {
+        columnCount,
+        rowCount,
+        doCanvasGridCut,
+        canvasGridCutColumnStart,
+        canvasGridCutColumnEnd,
+        canvasGridCutRowStart,
+        canvasGridCutRowEnd,
+        fileOrdering,
+        pickedImageBitmaps,
+    }: {
+        columnCount: number,
+        rowCount: number,
+        doCanvasGridCut: boolean,
+        canvasGridCutColumnStart: number,
+        canvasGridCutColumnEnd: number,
+        canvasGridCutRowStart: number,
+        canvasGridCutRowEnd: number,
+        fileOrdering: Array<string>,
+        pickedImageBitmaps: Map<string, ImageBitmap | Promise<ImageBitmap>>,
+    }
+) {
+
+    const aDrawingList = new Array<
+        {
+            columnNum: number,
+            rowNum: number,
+            fileName: string,
+            pickedImageBitmap: ImageBitmap,
+        }
+    >();
+
+    let pickedFileIndex = 0;
+
+    for (let rowNum = 1; rowNum <= rowCount; rowNum++) {
+
+        for (let columnNum = 1; columnNum <= columnCount; columnNum++) {
+
+            let shouldCutOutOfGrid =
+                doCanvasGridCut &&
+                (canvasGridCutColumnStart <= columnNum && columnNum <= canvasGridCutColumnEnd) &&
+                (canvasGridCutRowStart <= rowNum && rowNum <= canvasGridCutRowEnd);
+
+            if (!shouldCutOutOfGrid) {
+
+                while (pickedFileIndex < fileOrdering.length && pickedImageBitmaps.get(fileOrdering[pickedFileIndex]) === undefined) {
+
+                    pickedFileIndex++;
+                }
+
+                const pickedFile = fileOrdering[pickedFileIndex];
+
+                const pickedImageBitmap = pickedImageBitmaps.get(pickedFile);
+
+                if (pickedImageBitmap instanceof ImageBitmap) {
+
+                    aDrawingList.push({
+                        columnNum,
+                        rowNum,
+                        fileName: pickedFile,
+                        pickedImageBitmap,
+                    });
+                }
+
+                pickedFileIndex++;
+            }
+        }
+    }
+
+    return aDrawingList;
+};
+
 export function StepBlock_AdjustGeneratedImage(
     {
         stepNumber,
@@ -228,6 +301,8 @@ export function StepBlock_AdjustGeneratedImage(
         fileOrdering,
         workflowType,
         onImageDrawn,
+        switchFileName,
+        onSwitchClicked,
     }: {
         stepNumber: number,
         pickedFiles: Map<string, HTMLImageElement>;
@@ -235,6 +310,8 @@ export function StepBlock_AdjustGeneratedImage(
         fileOrdering: Array<string>,
         workflowType: WorkflowType,
         onImageDrawn: (canvas: HTMLCanvasElement) => void,
+        switchFileName: string | null,
+        onSwitchClicked: (fileName: string) => void,
     }
 ) {
 
@@ -378,73 +455,65 @@ export function StepBlock_AdjustGeneratedImage(
                         ctx.restore();
                     }
 
-                    let pickedFileIndex = 0;
-
                     const methodToUse = cutOrStretched === 0
                         ? getCutDrawing
                         : getStretchedDrawing;
 
-                    for (let rowNum = 1; rowNum <= rowCount; rowNum++) {
-
-                        for (let columnNum = 1; columnNum <= columnCount; columnNum++) {
-
-                            let shouldCutOutOfGrid =
-                                doCanvasGridCut &&
-                                (canvasGridCutColumnStart <= columnNum && columnNum <= canvasGridCutColumnEnd) &&
-                                (canvasGridCutRowStart <= rowNum && rowNum <= canvasGridCutRowEnd);
-
-                            if (!shouldCutOutOfGrid) {
-
-                                while (pickedFileIndex < fileOrdering.length && pickedImageBitmaps.get(fileOrdering[pickedFileIndex]) === undefined) {
-
-                                    pickedFileIndex++;
-                                }
-
-                                const pickedFile = fileOrdering[pickedFileIndex];
-
-                                const pickedImageBitmap = pickedImageBitmaps.get(pickedFile);
-
-                                if (pickedImageBitmap instanceof ImageBitmap) {
-
-                                    const p = pickedImageBitmap;
-
-                                    const [
-                                        sx,
-                                        sy,
-                                        sWidth,
-                                        sHeight,
-                                        dx,
-                                        dy,
-                                        dWidth,
-                                        dHeight,
-                                    ] = methodToUse(
-                                        columnNum,
-                                        rowNum,
-                                        p.width,
-                                        p.height,
-                                        imageBlockItemWidth,
-                                        imageBlockItemHeight,
-                                        doCanvasGap,
-                                        canvasGapSize,
-                                    );
-
-                                    ctx.drawImage(
-                                        p,
-                                        sx,
-                                        sy,
-                                        sWidth,
-                                        sHeight,
-                                        dx,
-                                        dy,
-                                        dWidth,
-                                        dHeight
-                                    );
-                                }
-
-                                pickedFileIndex++;
-                            }
+                    const drawingState = getDrawingState(
+                        {
+                            columnCount,
+                            rowCount,
+                            doCanvasGridCut,
+                            canvasGridCutColumnStart,
+                            canvasGridCutColumnEnd,
+                            canvasGridCutRowStart,
+                            canvasGridCutRowEnd,
+                            fileOrdering,
+                            pickedImageBitmaps,
                         }
-                    }
+                    );
+
+                    drawingState.forEach((drawingItem) => {
+
+                        const {
+                            columnNum,
+                            rowNum,
+                            pickedImageBitmap,
+                        } = drawingItem;
+
+                        const [
+                            sx,
+                            sy,
+                            sWidth,
+                            sHeight,
+                            dx,
+                            dy,
+                            dWidth,
+                            dHeight,
+                        ] = methodToUse(
+                            columnNum,
+                            rowNum,
+                            pickedImageBitmap.width,
+                            pickedImageBitmap.height,
+                            imageBlockItemWidth,
+                            imageBlockItemHeight,
+                            doCanvasGap,
+                            canvasGapSize,
+                        );
+
+                        ctx.drawImage(
+                            pickedImageBitmap,
+                            sx,
+                            sy,
+                            sWidth,
+                            sHeight,
+                            dx,
+                            dy,
+                            dWidth,
+                            dHeight
+                        );
+
+                    });
 
                     if (logoRef.current !== null && showLogo) {
 
@@ -480,88 +549,174 @@ export function StepBlock_AdjustGeneratedImage(
         ]
     );
 
+    const angleAnimationRef = React.useRef(0);
+
     React.useEffect(
         () => {
 
-            if (canvas2Ref.current !== null) {
+            const callbackId = window.setInterval(
+                () => {
 
-                const canvas = canvas2Ref.current;
+                    angleAnimationRef.current += 0.02;
 
-                const ctx = canvas.getContext('2d');
+                    if (angleAnimationRef.current > Math.PI*2) {
 
-                if (ctx !== null) {
-
-                    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-                    if (doCanvasGridCut) {
-
-                        ctx.save();
-
-                        const {
-                            dx: dx1,
-                            dy: dy1,
-                        } = getCanvasDrawingOffset({
-                            columnNum: canvasGridCutColumnStart,
-                            rowNum: canvasGridCutRowStart,
-                            imageBlockItemWidth,
-                            imageBlockItemHeight,
-                            doCanvasGap,
-                            canvasGapSize,
-                        });
-
-                        const {
-                            dx: dx2,
-                            dy: dy2,
-                        } = getCanvasDrawingOffset({
-                            columnNum: canvasGridCutColumnStart + canvasGridCutColumnWidth,
-                            rowNum: canvasGridCutRowStart + canvasGridCutRowHeight,
-                            imageBlockItemWidth,
-                            imageBlockItemHeight,
-                            doCanvasGap,
-                            canvasGapSize,
-                        });
-
-                        const xStart = dx1 + 2;
-                        const yStart = dy1 + 2;
-
-                        const xEnd = dx2 - 4 - canvasGapSize;
-                        const yEnd = dy2 - 4 - canvasGapSize;
-
-                        const gradient = ctx.createConicGradient(
-                            0,
-                            (xStart + xEnd)/2,
-                            (yStart + yEnd)/2
-                        );
-
-                        const stops = 12;
-                        for (let i = 0; i < stops; i += 2) {
-
-                            gradient.addColorStop(i/stops, "#777");
-                            gradient.addColorStop((i + 1)/stops, "#444");
-                        }
-                        gradient.addColorStop(1, "#777");
-
-                        ctx.strokeStyle = gradient;
-                        ctx.lineWidth = 4;
-
-                        ctx.strokeRect(
-                            xStart,
-                            yStart,
-                            xEnd - xStart,
-                            yEnd - yStart,
-                        );
-
-                        ctx.restore();
+                        angleAnimationRef.current -= Math.PI*2;
                     }
-                }
 
-            }
+                    if (canvas2Ref.current !== null) {
+
+                        const canvas = canvas2Ref.current;
+
+                        const ctx = canvas.getContext('2d');
+
+                        if (ctx !== null) {
+
+                            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+                            if (doCanvasGridCut) {
+
+                                ctx.save();
+
+                                const {
+                                    dx: dx1,
+                                    dy: dy1,
+                                } = getCanvasDrawingOffset({
+                                    columnNum: canvasGridCutColumnStart,
+                                    rowNum: canvasGridCutRowStart,
+                                    imageBlockItemWidth,
+                                    imageBlockItemHeight,
+                                    doCanvasGap,
+                                    canvasGapSize,
+                                });
+
+                                const {
+                                    dx: dx2,
+                                    dy: dy2,
+                                } = getCanvasDrawingOffset({
+                                    columnNum: canvasGridCutColumnStart + canvasGridCutColumnWidth,
+                                    rowNum: canvasGridCutRowStart + canvasGridCutRowHeight,
+                                    imageBlockItemWidth,
+                                    imageBlockItemHeight,
+                                    doCanvasGap,
+                                    canvasGapSize,
+                                });
+
+                                const xStart = dx1 + 2;
+                                const yStart = dy1 + 2;
+
+                                const xEnd = dx2 - 4 - canvasGapSize;
+                                const yEnd = dy2 - 4 - canvasGapSize;
+
+                                const gradient = ctx.createConicGradient(
+                                    0,
+                                    (xStart + xEnd)/2,
+                                    (yStart + yEnd)/2
+                                );
+
+                                const stops = 12;
+                                for (let i = 0; i < stops; i += 2) {
+
+                                    gradient.addColorStop(i/stops, "#777");
+                                    gradient.addColorStop((i + 1)/stops, "#444");
+                                }
+                                gradient.addColorStop(1, "#777");
+
+                                ctx.strokeStyle = gradient;
+                                ctx.lineWidth = 4;
+
+                                ctx.strokeRect(
+                                    xStart,
+                                    yStart,
+                                    xEnd - xStart,
+                                    yEnd - yStart,
+                                );
+
+                                ctx.restore();
+                            }
+
+                            const drawingState = getDrawingState(
+                                {
+                                    columnCount,
+                                    rowCount,
+                                    doCanvasGridCut,
+                                    canvasGridCutColumnStart,
+                                    canvasGridCutColumnEnd,
+                                    canvasGridCutRowStart,
+                                    canvasGridCutRowEnd,
+                                    fileOrdering,
+                                    pickedImageBitmaps,
+                                }
+                            );
+
+                            drawingState.forEach((drawingItem) => {
+
+                                if (drawingItem.fileName === switchFileName) {
+
+                                    const {
+                                        dx,
+                                        dy,
+                                    } = getCanvasDrawingOffset({
+                                        columnNum: drawingItem.columnNum,
+                                        rowNum: drawingItem.rowNum,
+                                        imageBlockItemWidth,
+                                        imageBlockItemHeight,
+                                        doCanvasGap,
+                                        canvasGapSize,
+                                    });
+
+                                    ctx.save();
+
+                                    const lineWidth = 4;
+
+                                    const gradient = ctx.createConicGradient(
+                                        angleAnimationRef.current,
+                                        dx + imageBlockItemWidth/2,
+                                        dy + imageBlockItemHeight/2,
+                                    );
+
+                                    const stops = 12;
+                                    for (let i = 0; i < stops; i += 2) {
+
+                                        gradient.addColorStop(i/stops, "rgba(0, 255, 0, 1)");
+                                        gradient.addColorStop((i + 1)/stops, "rgba(128, 128, 128, 1)");
+                                    }
+                                    gradient.addColorStop(1, "rgba(0, 255, 0, 1)");
+
+                                    ctx.strokeStyle = gradient;
+                                    ctx.lineWidth = lineWidth;
+
+                                    ctx.strokeRect(
+                                        dx + lineWidth/2,
+                                        dy + lineWidth/2,
+                                        imageBlockItemWidth - lineWidth,
+                                        imageBlockItemHeight - lineWidth,
+                                    );
+
+                                    ctx.restore();
+                                }
+                            });
+                        }
+
+                    }
+                },
+                20
+            )
+
+            return () => {
+
+                window.clearInterval(callbackId);
+            };
         },
         [
+            pickedImageBitmaps,
             canvasWidth, canvasHeight, imageBlockItemWidth, imageBlockItemHeight,
+            columnCount, rowCount,
             canvas2Ref,
             canvasGridCutColumnStart, canvasGridCutColumnWidth, canvasGridCutRowStart, canvasGridCutRowHeight, doCanvasGridCut,
+            canvasGridCutColumnEnd, canvasGridCutRowEnd,
             doCanvasGap, canvasGapSize, fileOrdering,
+            switchFileName,
         ]
     );
 
@@ -907,6 +1062,9 @@ export function StepBlock_AdjustGeneratedImage(
             <Typography>
                 Preview the generated image and adjust it (preview may be stretched and blurrier than saved image).
             </Typography>
+            <Typography>
+                Left-click to swap images. Right-click to unpick an image.
+            </Typography>
             <Container
                 sx={{
                     maxWidth: 800,
@@ -940,6 +1098,78 @@ export function StepBlock_AdjustGeneratedImage(
                         width={canvasWidth}
                         height={canvasHeight}
                         ref={canvas2Ref}
+                        onContextMenu={(event) => {
+
+                            // right-click
+
+                            event.preventDefault();
+
+                            return false;
+                        }}
+                        onPointerDown={(clickEvent) => {
+
+                            if (canvas2Ref.current !== null) {
+
+                                const canvas2 = canvas2Ref.current;
+
+                                const drawingState = getDrawingState(
+                                    {
+                                        columnCount,
+                                        rowCount,
+                                        doCanvasGridCut,
+                                        canvasGridCutColumnStart,
+                                        canvasGridCutColumnEnd,
+                                        canvasGridCutRowStart,
+                                        canvasGridCutRowEnd,
+                                        fileOrdering,
+                                        pickedImageBitmaps,
+                                    }
+                                );
+
+                                const br = canvas2.getBoundingClientRect();
+
+                                const canvasX = (clickEvent.clientX - br.left) * canvasWidth / br.width;
+
+                                const canvasY = (clickEvent.clientY - br.top) * canvasHeight / br.height;
+
+                                drawingState.forEach(drawingItem => {
+
+                                    const {
+                                        dx: xStart,
+                                        dy: yStart,
+                                    } = getCanvasDrawingOffset({
+                                        columnNum: drawingItem.columnNum,
+                                        rowNum: drawingItem.rowNum,
+                                        imageBlockItemWidth,
+                                        imageBlockItemHeight,
+                                        doCanvasGap,
+                                        canvasGapSize,
+                                    });
+
+                                    const xEnd = xStart + imageBlockItemWidth;
+                                    const yEnd = yStart + imageBlockItemHeight;
+
+                                    if (xStart <= canvasX && canvasX <= xEnd && yStart <= canvasY && canvasY <= yEnd) {
+
+                                        if (clickEvent.button === 0) {
+
+                                            onSwitchClicked(drawingItem.fileName);
+                                        }
+                                        else if (clickEvent.button === 2) {
+
+                                            setPickedFiles(oldPickedFiles => {
+
+                                                const newPickedFiles = new Map(oldPickedFiles);
+
+                                                newPickedFiles.delete(drawingItem.fileName);
+
+                                                return newPickedFiles;
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+                        }}
                     />
                 </div>
 

@@ -108,6 +108,50 @@ function App() {
 
   const [latestDuplicateFileName, setLatestDuplicateFileName] = React.useState("");
 
+  const [switchFileName, setSwitchFileName] = React.useState<string | null>(null);
+
+  const onSwitchClicked = React.useCallback(
+      (fileName: string) => {
+
+
+          if (switchFileName === null) {
+
+              setSwitchFileName(fileName);
+          }
+          else if (switchFileName === fileName) {
+
+              setSwitchFileName(null);
+          }
+          else {
+
+              setFileOrdering(oldArray => {
+
+                  if (switchFileName !== null) {
+
+                      const index1 = oldArray.indexOf(fileName);
+                      const index2 = oldArray.indexOf(switchFileName);
+
+                      const newArray = Array.from(oldArray);
+
+                      if (index1 !== index2 && index1 !== -1 && index2 !== -1) {
+
+                          newArray[index1] = switchFileName;
+                          newArray[index2] = fileName;
+
+                          return newArray;
+                      }
+
+                  }
+
+                  return oldArray;
+              });
+
+              setSwitchFileName(null);
+          }
+      },
+      [switchFileName, setFileOrdering]
+  );
+
   return (
 
     <ThemeProvider theme={theme}>
@@ -268,6 +312,8 @@ function App() {
           setFileOrdering={setFileOrdering}
           threadContext={threadContext}
           workflowType={selectedWorkflowType}
+          switchFileName={switchFileName}
+          onSwitchClicked={onSwitchClicked}
         />
 
         <StepBlock_AdjustGeneratedImage
@@ -280,6 +326,8 @@ function App() {
 
             setCanvasElement(canvasElement);
           }}
+          switchFileName={switchFileName}
+          onSwitchClicked={onSwitchClicked}
         />
 
         <StepBlock_GenerateImage

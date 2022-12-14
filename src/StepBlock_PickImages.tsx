@@ -17,6 +17,7 @@ import Card from "@mui/material/Card";
 import Container from "@mui/material/Container";
 import { WorkflowType } from "./WorkflowType";
 import { getNumber } from "./helper";
+import HelpOutline from "@mui/icons-material/HelpOutline";
 
 export type LoadStatus =
     {
@@ -182,6 +183,8 @@ export function StepBlock_PickImages(
         setFileOrdering,
         threadContext,
         workflowType,
+        switchFileName,
+        onSwitchClicked,
     }: {
         stepNumber: number,
         openedFiles: ImageFileMap,
@@ -191,6 +194,8 @@ export function StepBlock_PickImages(
         setFileOrdering: React.Dispatch<React.SetStateAction<Array<string>>>,
         threadContext: ThreadContext,
         workflowType: WorkflowType,
+        switchFileName: string | null,
+        onSwitchClicked: (fileName: string) => void,
     }
 ) {
 
@@ -408,50 +413,6 @@ export function StepBlock_PickImages(
         [openedFilesList, setFileOrdering, imageDataURIMapDispatch, imageDataURIMap]
     );
 
-    const [switchFileName, setSwitchFileName] = React.useState<string | null>(null);
-
-    const onSwitchClicked = React.useCallback(
-        (fileName: string) => {
-
-
-            if (switchFileName === null) {
-
-                setSwitchFileName(fileName);
-            }
-            else if (switchFileName === fileName) {
-
-                setSwitchFileName(null);
-            }
-            else {
-
-                setFileOrdering(oldArray => {
-
-                    if (switchFileName !== null) {
-
-                        const index1 = oldArray.indexOf(fileName);
-                        const index2 = oldArray.indexOf(switchFileName);
-
-                        const newArray = Array.from(oldArray);
-
-                        if (index1 !== index2 && index1 !== -1 && index2 !== -1) {
-
-                            newArray[index1] = switchFileName;
-                            newArray[index2] = fileName;
-
-                            return newArray;
-                        }
-
-                    }
-
-                    return oldArray;
-                });
-
-                setSwitchFileName(null);
-            }
-        },
-        [switchFileName, setFileOrdering]
-    );
-
     const setImageElementCallback = React.useCallback(
         (fileName: string, imageElement: HTMLImageElement) => {
 
@@ -505,15 +466,77 @@ export function StepBlock_PickImages(
         [imageDataURIMapDispatch]
     );
 
+    const [showGuidelinesDialog, setShowGuidelinesDialog] = React.useState(false);
+
     return (
         <StepBlock
             stepNumber={stepNumber}
             stepTitle="Pick images"
         >
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                }}
+            >
 
-            <Typography>
-                Pick which images should be shown on the collage.
-            </Typography>
+                <Typography>
+                    Pick which images should be shown on the collage.
+                </Typography>
+
+                <Dialog
+                    open={showGuidelinesDialog}
+                    onClose={() => {
+
+                        setShowGuidelinesDialog(false);
+                    }}
+                >
+                    <Container
+                        sx={{
+                            paddingTop: "4px",
+                        }}
+                    >
+                        <Typography>
+                            Guidelines:
+
+                        </Typography>
+
+                        <ul>
+                            <li>
+                                Repetition should be avoided, and similar-looking images unpicked to one image.
+                            </li>
+                            <li>
+                                Code should be posted very rarely, preferably at most once per collage.
+                            </li>
+                            <li>
+                                Stuff like settings, which all look the same and are boring, should mostly be excluded.
+                            </li>
+                            <li>
+                                Stuff like sketches and other rough stuff are good candidates for inclusion.
+                            </li>
+                        </ul>
+
+                    </Container>
+
+                </Dialog>
+
+                <Button
+                    variant="contained"
+                    sx={{
+                        marginLeft: "10px",
+                    }}
+                    onClick={() => {
+
+                        setShowGuidelinesDialog(true);
+                    }}
+                >
+
+                    <HelpOutline/>
+
+                </Button>
+
+            </Box>
+
 
             <Typography>
                 Picked: {pickedFiles.size}/{openedFiles.size}.
@@ -841,7 +864,7 @@ function ImageBlock(
                     onSwitchClicked(fileName);
                 }}
             >
-                Switch
+                Swap
 
                 {
                     isThisBeingSwitched
